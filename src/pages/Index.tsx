@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Icon from "@/components/ui/icon";
 
 type LucideIconName = string;
@@ -7,6 +7,46 @@ type LucideIconName = string;
 function scrollTo(id: string) {
   const el = document.getElementById(id);
   if (el) el.scrollIntoView({ behavior: "smooth" });
+}
+
+// ─── useParallax hook ─────────────────────────────────────────────────────────
+function useParallax(speed = 0.3) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [offset, setOffset] = useState(0);
+
+  const onScroll = useCallback(() => {
+    if (!ref.current) return;
+    const rect = ref.current.getBoundingClientRect();
+    const centerY = rect.top + rect.height / 2 - window.innerHeight / 2;
+    setOffset(centerY * speed);
+  }, [speed]);
+
+  useEffect(() => {
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [onScroll]);
+
+  return { ref, offset };
+}
+
+// ─── useScrollReveal hook ─────────────────────────────────────────────────────
+function useScrollReveal() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setVisible(true); obs.disconnect(); } },
+      { threshold: 0.15 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  return { ref, visible };
 }
 
 // ─── ORDER MODAL (Заказать печать) ───────────────────────────────────────────
@@ -483,23 +523,50 @@ function Hero({ onQuiz }: { onQuiz: () => void }) {
     { img: PORTFOLIO_IMAGES[3], label: "Блокноты · Премиум" },
   ];
   const [activeGallery, setActiveGallery] = useState(0);
+  const [scrollY, setScrollY] = useState(0);
 
   useEffect(() => {
     const t = setInterval(() => setActiveGallery((i) => (i + 1) % galleryItems.length), 3000);
     return () => clearInterval(t);
   }, []);
 
+  useEffect(() => {
+    const onScroll = () => setScrollY(window.scrollY);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   return (
     <section className="relative min-h-screen flex items-center overflow-hidden bg-brand-dark">
+      {/* Parallax background layers */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-1/4 -left-32 w-96 h-96 rounded-full bg-brand-orange/20 blur-3xl animate-float" />
-        <div className="absolute bottom-1/4 -right-32 w-80 h-80 rounded-full bg-brand-amber/15 blur-3xl animate-float" style={{ animationDelay: "2s" }} />
-        <div className="absolute inset-0 opacity-5" style={{ backgroundImage: "linear-gradient(rgba(255,87,34,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(255,87,34,0.3) 1px, transparent 1px)", backgroundSize: "60px 60px" }} />
+        {/* Grid — moves slowest */}
+        <div className="absolute inset-0 opacity-5"
+          style={{
+            backgroundImage: "linear-gradient(rgba(255,87,34,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(255,87,34,0.3) 1px, transparent 1px)",
+            backgroundSize: "60px 60px",
+            transform: `translateY(${scrollY * 0.15}px)`,
+          }}
+        />
+        {/* Blob 1 — slow */}
+        <div className="absolute top-1/4 -left-32 w-96 h-96 rounded-full bg-brand-orange/25 blur-3xl animate-float"
+          style={{ transform: `translateY(${scrollY * 0.25}px)` }} />
+        {/* Blob 2 — medium */}
+        <div className="absolute bottom-1/4 -right-32 w-80 h-80 rounded-full bg-brand-amber/20 blur-3xl animate-float"
+          style={{ animationDelay: "2s", transform: `translateY(${scrollY * 0.35}px)` }} />
+        {/* Blob 3 — faster */}
+        <div className="absolute top-3/4 left-1/3 w-64 h-64 rounded-full bg-brand-orange/10 blur-3xl"
+          style={{ transform: `translateY(${scrollY * 0.45}px)` }} />
+        {/* Decorative ring */}
+        <div className="absolute -right-24 top-1/2 w-[500px] h-[500px] rounded-full border border-brand-orange/8"
+          style={{ transform: `translateY(${scrollY * 0.2}px) rotate(${scrollY * 0.02}deg)` }} />
+        <div className="absolute -right-12 top-1/2 w-[350px] h-[350px] rounded-full border border-brand-orange/5"
+          style={{ transform: `translateY(${scrollY * 0.3}px) rotate(${-scrollY * 0.015}deg)` }} />
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-6 pt-24 pb-16 grid lg:grid-cols-2 gap-16 items-center">
-        {/* Text */}
-        <div className="animate-fade-up">
+        {/* Text — slight upward drift */}
+        <div className="animate-fade-up" style={{ transform: `translateY(${scrollY * 0.08}px)` }}>
           <div className="inline-flex items-center gap-2 bg-brand-orange/10 border border-brand-orange/30 rounded-full px-4 py-1.5 mb-6">
             <div className="w-2 h-2 rounded-full bg-brand-orange animate-pulse" />
             <span className="font-body text-sm text-brand-orange font-medium">Москва · Печать от 1 дня</span>
@@ -546,15 +613,15 @@ function Hero({ onQuiz }: { onQuiz: () => void }) {
           </div>
         </div>
 
-        {/* Gallery */}
-        <div className="hidden lg:block">
+        {/* Gallery — moves slightly opposite to text */}
+        <div className="hidden lg:block" style={{ transform: `translateY(${-scrollY * 0.05}px)` }}>
           <div className="relative">
-            {/* Big main card */}
             <div className="relative rounded-2xl overflow-hidden shadow-2xl">
               <img
                 src={galleryItems[activeGallery].img}
                 alt={galleryItems[activeGallery].label}
                 className="w-full h-72 object-cover transition-all duration-700"
+                style={{ transform: `scale(1.08) translateY(${scrollY * 0.04}px)` }}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
               <div className="absolute bottom-4 left-4">
@@ -564,7 +631,6 @@ function Hero({ onQuiz }: { onQuiz: () => void }) {
               </div>
             </div>
 
-            {/* Thumbnails row */}
             <div className="grid grid-cols-4 gap-2 mt-2">
               {galleryItems.map((item, i) => (
                 <button key={i} onClick={() => setActiveGallery(i)}
@@ -574,8 +640,8 @@ function Hero({ onQuiz }: { onQuiz: () => void }) {
               ))}
             </div>
 
-            {/* Floating badge */}
-            <div className="absolute -top-3 -right-3 gradient-brand rounded-2xl p-3 shadow-lg animate-float z-10">
+            <div className="absolute -top-3 -right-3 gradient-brand rounded-2xl p-3 shadow-lg animate-float z-10"
+              style={{ transform: `translateY(${-scrollY * 0.12}px)` }}>
               <Icon name="Award" size={26} className="text-white" />
             </div>
           </div>
@@ -590,8 +656,23 @@ function Hero({ onQuiz }: { onQuiz: () => void }) {
   );
 }
 
+// ─── RevealCard wrapper ───────────────────────────────────────────────────────
+function RevealCard({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
+  const { ref, visible } = useScrollReveal();
+  return (
+    <div ref={ref}
+      className={`transition-all duration-700 ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-12"}`}
+      style={{ transitionDelay: `${delay}ms` }}>
+      {children}
+    </div>
+  );
+}
+
 // ─── SERVICES ────────────────────────────────────────────────────────────────
 function Services() {
+  const { ref: bgRef, offset: bgOffset } = useParallax(0.2);
+  const { ref: titleRef, visible: titleVisible } = useScrollReveal();
+
   const services = [
     { icon: "BookOpen", title: "Каталоги", desc: "Профессиональные каталоги продукции. Полноцветная печать, любой формат.", features: ["А4, А5, А3", "До 500 страниц", "Полноцветная"], color: "from-orange-500 to-red-500" },
     { icon: "FileText", title: "Журналы", desc: "Корпоративные и рекламные журналы. Скоба или клей, любая бумага.", features: ["А4, B5, А5", "Скоба или КБС", "Мелованная"], color: "from-amber-500 to-orange-500" },
@@ -602,10 +683,20 @@ function Services() {
   ];
 
   return (
-    <section id="services" className="py-24 bg-brand-dark relative overflow-hidden">
-      <div className="absolute top-0 right-0 w-96 h-96 bg-brand-orange/5 rounded-full blur-3xl pointer-events-none" />
+    <section id="services" ref={bgRef} className="py-24 bg-brand-dark relative overflow-hidden">
+      {/* Parallax blobs */}
+      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-brand-orange/6 rounded-full blur-3xl pointer-events-none"
+        style={{ transform: `translateY(${bgOffset * 0.6}px)` }} />
+      <div className="absolute bottom-0 left-0 w-64 h-64 bg-brand-amber/5 rounded-full blur-3xl pointer-events-none"
+        style={{ transform: `translateY(${bgOffset * 0.9}px)` }} />
+      {/* Parallax decorative text */}
+      <div className="absolute right-0 top-1/2 -translate-y-1/2 font-display text-[180px] font-bold text-white/[0.015] pointer-events-none select-none leading-none"
+        style={{ transform: `translateY(calc(-50% + ${bgOffset * 0.4}px))` }}>
+        PRINT
+      </div>
+
       <div className="max-w-7xl mx-auto px-6 relative z-10">
-        <div className="text-center mb-16">
+        <div ref={titleRef} className={`text-center mb-16 transition-all duration-700 ${titleVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}>
           <div className="inline-flex items-center gap-2 bg-brand-orange/10 border border-brand-orange/30 rounded-full px-4 py-1.5 mb-4">
             <Icon name="Layers" size={14} className="text-brand-orange" />
             <span className="font-body text-sm text-brand-orange font-medium">Что мы печатаем</span>
@@ -614,19 +705,21 @@ function Services() {
           <p className="font-body text-white/50 max-w-xl mx-auto">Полный спектр печатной продукции для вашего бизнеса</p>
         </div>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {services.map((s) => (
-            <div key={s.title} className="card-dark rounded-2xl p-6 hover-lift group cursor-pointer">
-              <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${s.color} flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300`}>
-                <Icon name={s.icon as LucideIconName} size={22} className="text-white" />
+          {services.map((s, i) => (
+            <RevealCard key={s.title} delay={i * 80}>
+              <div className="card-dark rounded-2xl p-6 hover-lift group cursor-pointer h-full">
+                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${s.color} flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300`}>
+                  <Icon name={s.icon as LucideIconName} size={22} className="text-white" />
+                </div>
+                <h3 className="font-display text-xl font-bold text-white mb-3">{s.title}</h3>
+                <p className="font-body text-white/50 text-sm leading-relaxed mb-5">{s.desc}</p>
+                <div className="flex flex-wrap gap-2">
+                  {s.features.map((f) => (
+                    <span key={f} className="font-body text-xs bg-brand-orange/10 border border-brand-orange/20 text-brand-orange px-2.5 py-1 rounded-md">{f}</span>
+                  ))}
+                </div>
               </div>
-              <h3 className="font-display text-xl font-bold text-white mb-3">{s.title}</h3>
-              <p className="font-body text-white/50 text-sm leading-relaxed mb-5">{s.desc}</p>
-              <div className="flex flex-wrap gap-2">
-                {s.features.map((f) => (
-                  <span key={f} className="font-body text-xs bg-brand-orange/10 border border-brand-orange/20 text-brand-orange px-2.5 py-1 rounded-md">{f}</span>
-                ))}
-              </div>
-            </div>
+            </RevealCard>
           ))}
         </div>
       </div>
@@ -637,24 +730,34 @@ function Services() {
 // ─── PORTFOLIO ───────────────────────────────────────────────────────────────
 function Portfolio({ onShowAll }: { onShowAll: () => void }) {
   const [gallery, setGallery] = useState<{ title: string; category: string } | null>(null);
+  const { ref: bgRef, offset: bgOffset } = useParallax(0.18);
+  const { ref: titleRef, visible: titleVisible } = useScrollReveal();
 
   const projects = [
-    { title: "Каталог Rossmann", category: "Каталог", pages: "96 стр · А4", qty: "5 000 шт.", color: "from-orange-600 to-red-700", img: PORTFOLIO_IMAGES[0] },
-    { title: "Корп. журнал TechGroup", category: "Журнал", pages: "48 стр · B5", qty: "2 000 шт.", color: "from-amber-500 to-orange-600", img: PORTFOLIO_IMAGES[1] },
-    { title: "Брошюра Skolkovo", category: "Брошюра", pages: "24 стр · А4", qty: "10 000 шт.", color: "from-red-600 to-rose-700", img: PORTFOLIO_IMAGES[2] },
-    { title: "Блокноты СберБанк", category: "Блокноты", pages: "80 стр · А5", qty: "3 000 шт.", color: "from-rose-500 to-orange-600", img: PORTFOLIO_IMAGES[3] },
-    { title: "Каталог Leroy Merlin", category: "Каталог", pages: "128 стр · А4", qty: "20 000 шт.", color: "from-orange-500 to-amber-600", img: PORTFOLIO_IMAGES[0] },
-    { title: "Журнал Fashion House", category: "Журнал", pages: "64 стр · А4", qty: "8 000 шт.", color: "from-amber-400 to-orange-500", img: PORTFOLIO_IMAGES[1] },
+    { title: "Каталог Rossmann", category: "Каталог", pages: "96 стр · А4", qty: "5 000 шт.", img: PORTFOLIO_IMAGES[0] },
+    { title: "Корп. журнал TechGroup", category: "Журнал", pages: "48 стр · B5", qty: "2 000 шт.", img: PORTFOLIO_IMAGES[1] },
+    { title: "Брошюра Skolkovo", category: "Брошюра", pages: "24 стр · А4", qty: "10 000 шт.", img: PORTFOLIO_IMAGES[2] },
+    { title: "Блокноты СберБанк", category: "Блокноты", pages: "80 стр · А5", qty: "3 000 шт.", img: PORTFOLIO_IMAGES[3] },
+    { title: "Каталог Leroy Merlin", category: "Каталог", pages: "128 стр · А4", qty: "20 000 шт.", img: PORTFOLIO_IMAGES[0] },
+    { title: "Журнал Fashion House", category: "Журнал", pages: "64 стр · А4", qty: "8 000 шт.", img: PORTFOLIO_IMAGES[1] },
   ];
 
   return (
     <>
       <GalleryModal open={!!gallery} onClose={() => setGallery(null)} project={gallery} />
 
-      <section id="portfolio" className="py-24 bg-[#0A0806] relative overflow-hidden">
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-brand-orange/5 rounded-full blur-3xl pointer-events-none" />
+      <section id="portfolio" ref={bgRef} className="py-24 bg-[#0A0806] relative overflow-hidden">
+        {/* Parallax background */}
+        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-brand-orange/5 rounded-full blur-3xl pointer-events-none"
+          style={{ transform: `translateY(${bgOffset * 0.7}px)` }} />
+        <div className="absolute top-0 right-0 w-64 h-64 bg-brand-amber/4 rounded-full blur-3xl pointer-events-none"
+          style={{ transform: `translateY(${bgOffset * 0.4}px)` }} />
+        <div className="absolute left-0 top-1/2 font-display text-[200px] font-bold text-white/[0.012] pointer-events-none select-none leading-none"
+          style={{ transform: `translateY(calc(-50% + ${bgOffset * 0.3}px))` }}>
+          WORK
+        </div>
         <div className="max-w-7xl mx-auto px-6 relative z-10">
-          <div className="text-center mb-16">
+          <div ref={titleRef} className={`text-center mb-16 transition-all duration-700 ${titleVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}>
             <div className="inline-flex items-center gap-2 bg-brand-orange/10 border border-brand-orange/30 rounded-full px-4 py-1.5 mb-4">
               <Icon name="Image" size={14} className="text-brand-orange" />
               <span className="font-body text-sm text-brand-orange font-medium">Наши работы</span>
@@ -664,26 +767,29 @@ function Portfolio({ onShowAll }: { onShowAll: () => void }) {
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {projects.map((p) => (
-              <div key={p.title} className="group relative rounded-2xl overflow-hidden cursor-pointer" onClick={() => setGallery({ title: p.title, category: p.category })}>
-                <div className="relative h-52 overflow-hidden">
-                  <img src={p.img} alt={p.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                    <div className="gradient-brand rounded-full p-3 shadow-lg">
-                      <Icon name="Eye" size={20} className="text-white" />
+            {projects.map((p, i) => (
+              <RevealCard key={p.title} delay={i * 70}>
+                <div className="group relative rounded-2xl overflow-hidden cursor-pointer h-full"
+                  onClick={() => setGallery({ title: p.title, category: p.category })}>
+                  <div className="relative h-52 overflow-hidden">
+                    <img src={p.img} alt={p.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                      <div className="gradient-brand rounded-full p-3 shadow-lg scale-90 group-hover:scale-100 transition-transform duration-300">
+                        <Icon name="Eye" size={20} className="text-white" />
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="card-dark p-5 rounded-b-2xl border border-brand-border border-t-0">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-body text-xs bg-brand-orange/15 text-brand-orange px-2.5 py-1 rounded-md">{p.category}</span>
-                    <span className="font-body text-xs text-white/40">{p.qty}</span>
+                  <div className="card-dark p-5 rounded-b-2xl border border-brand-border border-t-0">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-body text-xs bg-brand-orange/15 text-brand-orange px-2.5 py-1 rounded-md">{p.category}</span>
+                      <span className="font-body text-xs text-white/40">{p.qty}</span>
+                    </div>
+                    <h3 className="font-display text-lg font-bold text-white mb-1">{p.title}</h3>
+                    <p className="font-body text-sm text-white/40">{p.pages}</p>
                   </div>
-                  <h3 className="font-display text-lg font-bold text-white mb-1">{p.title}</h3>
-                  <p className="font-body text-sm text-white/40">{p.pages}</p>
                 </div>
-              </div>
+              </RevealCard>
             ))}
           </div>
 
@@ -840,27 +946,39 @@ function Calculator({ onQuiz }: { onQuiz: () => void }) {
 
 // ─── REVIEWS (Яндекс Бизнес стиль) ──────────────────────────────────────────
 function Reviews() {
+  const { ref: bgRef, offset: bgOffset } = useParallax(0.15);
+  const { ref: titleRef, visible: titleVisible } = useScrollReveal();
+
   const reviews = [
-    { name: "Алексей В.", date: "2 дня назад", text: "Работаем с ПринтМастером уже 4 года. Качество каталогов всегда на высоте, сроки никогда не срываются.", stars: 5, avatar: "А", source: "yandex" },
-    { name: "Мария С.", date: "1 неделю назад", text: "Журналы для корпоративного мероприятия. Глянцевая печать выглядит роскошно, клиенты в восторге!", stars: 5, avatar: "М", source: "yandex" },
-    { name: "Дмитрий К.", date: "2 недели назад", text: "Брошюры каждый квартал. Качество стабильное, цены честные. Менеджеры всегда на связи.", stars: 5, avatar: "Д", source: "yandex" },
-    { name: "Ольга П.", date: "3 недели назад", text: "Экспресс-тираж буклетов за сутки до выставки. Всё успели — качество отличное. Рекомендую!", stars: 5, avatar: "О", source: "yandex" },
-    { name: "Иван С.", date: "1 месяц назад", text: "Отличное соотношение цена/качество. Работаем больше 2 лет, ни разу не подвели.", stars: 5, avatar: "И", source: "yandex" },
-    { name: "Наталья И.", date: "1 месяц назад", text: "Каталоги для международной выставки. Мелованная бумага, яркие цвета, прекрасная брошюровка.", stars: 5, avatar: "Н", source: "yandex" },
+    { name: "Алексей В.", date: "2 дня назад", text: "Работаем с ПринтМастером уже 4 года. Качество каталогов всегда на высоте, сроки никогда не срываются.", stars: 5, avatar: "А" },
+    { name: "Мария С.", date: "1 неделю назад", text: "Журналы для корпоративного мероприятия. Глянцевая печать выглядит роскошно, клиенты в восторге!", stars: 5, avatar: "М" },
+    { name: "Дмитрий К.", date: "2 недели назад", text: "Брошюры каждый квартал. Качество стабильное, цены честные. Менеджеры всегда на связи.", stars: 5, avatar: "Д" },
+    { name: "Ольга П.", date: "3 недели назад", text: "Экспресс-тираж буклетов за сутки до выставки. Всё успели — качество отличное. Рекомендую!", stars: 5, avatar: "О" },
+    { name: "Иван С.", date: "1 месяц назад", text: "Отличное соотношение цена/качество. Работаем больше 2 лет, ни разу не подвели.", stars: 5, avatar: "И" },
+    { name: "Наталья И.", date: "1 месяц назад", text: "Каталоги для международной выставки. Мелованная бумага, яркие цвета, прекрасная брошюровка.", stars: 5, avatar: "Н" },
   ];
 
   return (
-    <section id="reviews" className="py-24 bg-[#0A0806] relative overflow-hidden">
-      <div className="absolute top-0 right-0 w-80 h-80 bg-brand-amber/5 rounded-full blur-3xl pointer-events-none" />
+    <section id="reviews" ref={bgRef} className="py-24 bg-[#0A0806] relative overflow-hidden">
+      {/* Parallax blobs */}
+      <div className="absolute top-0 right-0 w-[450px] h-[450px] bg-brand-amber/5 rounded-full blur-3xl pointer-events-none"
+        style={{ transform: `translateY(${bgOffset * 0.5}px)` }} />
+      <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-brand-orange/4 rounded-full blur-3xl pointer-events-none"
+        style={{ transform: `translateY(${bgOffset * 0.8}px)` }} />
+      {/* Ghost text */}
+      <div className="absolute right-0 bottom-0 font-display text-[160px] font-bold text-white/[0.014] pointer-events-none select-none leading-none"
+        style={{ transform: `translateY(${bgOffset * 0.35}px)` }}>
+        5.0★
+      </div>
+
       <div className="max-w-7xl mx-auto px-6 relative z-10">
-        <div className="text-center mb-16">
+        <div ref={titleRef} className={`text-center mb-16 transition-all duration-700 ${titleVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}>
           <div className="inline-flex items-center gap-2 bg-brand-orange/10 border border-brand-orange/30 rounded-full px-4 py-1.5 mb-4">
             <Icon name="Star" size={14} className="text-brand-orange" />
             <span className="font-body text-sm text-brand-orange font-medium">Отзывы клиентов</span>
           </div>
           <h2 className="font-display text-4xl md:text-5xl font-bold text-white mb-4">НАС <span className="gradient-text">РЕКОМЕНДУЮТ</span></h2>
 
-          {/* Yandex-style rating block */}
           <div className="inline-flex items-center gap-4 bg-[#1A1512] border border-brand-border rounded-2xl px-6 py-4 mt-4">
             <div className="text-left">
               <div className="font-display text-4xl font-bold text-white">5.0</div>
@@ -875,7 +993,6 @@ function Reviews() {
               <div className="font-body text-xs text-white/40">отзывов</div>
             </div>
             <div className="w-px h-12 bg-brand-border" />
-            {/* Yandex logo block */}
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-red-600 rounded-lg flex items-center justify-center">
                 <span className="font-display text-white font-bold text-sm">Я</span>
@@ -889,42 +1006,37 @@ function Reviews() {
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {reviews.map((r) => (
-            <div key={r.name} className="bg-[#141210] border border-brand-border rounded-2xl p-5 hover-lift">
-              {/* Review header */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full gradient-brand flex items-center justify-center flex-shrink-0">
-                    <span className="font-display text-sm font-bold text-white">{r.avatar}</span>
+          {reviews.map((r, i) => (
+            <RevealCard key={r.name} delay={i * 60}>
+              <div className="bg-[#141210] border border-brand-border rounded-2xl p-5 hover-lift h-full">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full gradient-brand flex items-center justify-center flex-shrink-0">
+                      <span className="font-display text-sm font-bold text-white">{r.avatar}</span>
+                    </div>
+                    <div>
+                      <div className="font-body text-sm font-semibold text-white">{r.name}</div>
+                      <div className="font-body text-xs text-white/35">{r.date}</div>
+                    </div>
                   </div>
-                  <div>
-                    <div className="font-body text-sm font-semibold text-white">{r.name}</div>
-                    <div className="font-body text-xs text-white/35">{r.date}</div>
+                  <div className="w-6 h-6 bg-red-600 rounded flex items-center justify-center flex-shrink-0">
+                    <span className="font-display text-white font-bold text-xs">Я</span>
                   </div>
                 </div>
-                {/* Yandex mini badge */}
-                <div className="w-6 h-6 bg-red-600 rounded flex items-center justify-center flex-shrink-0">
-                  <span className="font-display text-white font-bold text-xs">Я</span>
+                <div className="flex gap-0.5 mb-3">
+                  {Array.from({ length: r.stars }).map((_, j) => (
+                    <Icon key={j} name="Star" size={13} className="text-yellow-400" />
+                  ))}
+                </div>
+                <p className="font-body text-sm text-white/65 leading-relaxed">{r.text}</p>
+                <div className="flex items-center gap-4 mt-4 pt-4 border-t border-brand-border">
+                  <button className="flex items-center gap-1.5 text-white/30 hover:text-white/60 transition-colors">
+                    <Icon name="ThumbsUp" size={13} />
+                    <span className="font-body text-xs">Полезно</span>
+                  </button>
                 </div>
               </div>
-
-              {/* Stars */}
-              <div className="flex gap-0.5 mb-3">
-                {Array.from({ length: r.stars }).map((_, j) => (
-                  <Icon key={j} name="Star" size={13} className="text-yellow-400" />
-                ))}
-              </div>
-
-              <p className="font-body text-sm text-white/65 leading-relaxed">{r.text}</p>
-
-              {/* Like block */}
-              <div className="flex items-center gap-4 mt-4 pt-4 border-t border-brand-border">
-                <button className="flex items-center gap-1.5 text-white/30 hover:text-white/60 transition-colors">
-                  <Icon name="ThumbsUp" size={13} />
-                  <span className="font-body text-xs">Полезно</span>
-                </button>
-              </div>
-            </div>
+            </RevealCard>
           ))}
         </div>
       </div>
@@ -936,6 +1048,8 @@ function Reviews() {
 function Contacts() {
   const [form, setForm] = useState({ name: "", phone: "", comment: "" });
   const [sent, setSent] = useState(false);
+  const { ref: bgRef, offset: bgOffset } = useParallax(0.12);
+  const { ref: titleRef, visible: titleVisible } = useScrollReveal();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -943,12 +1057,19 @@ function Contacts() {
   const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); setSent(true); };
 
   return (
-    <section id="contacts" className="py-24 bg-brand-dark relative overflow-hidden">
-      <div className="absolute bottom-0 right-0 w-96 h-96 bg-brand-orange/8 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute top-0 left-0 w-64 h-64 bg-brand-amber/5 rounded-full blur-3xl pointer-events-none" />
+    <section id="contacts" ref={bgRef} className="py-24 bg-brand-dark relative overflow-hidden">
+      <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-brand-orange/7 rounded-full blur-3xl pointer-events-none"
+        style={{ transform: `translateY(${bgOffset * 0.6}px)` }} />
+      <div className="absolute top-0 left-0 w-80 h-80 bg-brand-amber/5 rounded-full blur-3xl pointer-events-none"
+        style={{ transform: `translateY(${bgOffset * 0.4}px)` }} />
+      {/* Ghost text */}
+      <div className="absolute right-0 top-1/2 font-display text-[150px] font-bold text-white/[0.015] pointer-events-none select-none leading-none"
+        style={{ transform: `translateY(calc(-50% + ${bgOffset * 0.3}px))` }}>
+        CALL
+      </div>
 
       <div className="max-w-6xl mx-auto px-6 relative z-10">
-        <div className="text-center mb-16">
+        <div ref={titleRef} className={`text-center mb-16 transition-all duration-700 ${titleVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}>
           <div className="inline-flex items-center gap-2 bg-brand-orange/10 border border-brand-orange/30 rounded-full px-4 py-1.5 mb-4">
             <Icon name="Phone" size={14} className="text-brand-orange" />
             <span className="font-body text-sm text-brand-orange font-medium">Свяжитесь с нами</span>
