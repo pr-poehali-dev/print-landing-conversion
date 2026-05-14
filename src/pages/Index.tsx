@@ -1,10 +1,414 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Icon from "@/components/ui/icon";
 
 type LucideIconName = string;
 
-// ─── NAV ────────────────────────────────────────────────────────────────────
-function Nav() {
+// ─── smooth scroll helper ─────────────────────────────────────────────────────
+function scrollTo(id: string) {
+  const el = document.getElementById(id);
+  if (el) el.scrollIntoView({ behavior: "smooth" });
+}
+
+// ─── ORDER MODAL (Заказать печать) ───────────────────────────────────────────
+function OrderModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [form, setForm] = useState({ name: "", phone: "", email: "", comment: "", file: null as File | null });
+  const [sent, setSent] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+    setForm({ ...form, [e.target.name]: e.target.value });
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm({ ...form, file: e.target.files?.[0] ?? null });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSent(true);
+  };
+
+  useEffect(() => {
+    if (open) { setSent(false); setForm({ name: "", phone: "", email: "", comment: "", file: null }); }
+    document.body.style.overflow = open ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [open]);
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+      <div
+        className="relative z-10 card-dark rounded-2xl w-full max-w-lg p-8 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button onClick={onClose} className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors">
+          <Icon name="X" size={20} />
+        </button>
+
+        {!sent ? (
+          <>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 gradient-brand rounded-xl flex items-center justify-center">
+                <Icon name="Printer" size={18} className="text-white" />
+              </div>
+              <div>
+                <h3 className="font-display text-xl font-bold text-white">Заказать печать</h3>
+                <p className="font-body text-xs text-white/50">Ответим за 30 минут с КП</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-body text-xs text-white/50 mb-1 block">Ваше имя *</label>
+                  <input name="name" required value={form.name} onChange={handleChange}
+                    placeholder="Иван Иванов"
+                    className="w-full bg-brand-border/40 border border-brand-border rounded-xl px-3 py-2.5 font-body text-sm text-white placeholder-white/25 focus:outline-none focus:border-brand-orange/60 transition-colors" />
+                </div>
+                <div>
+                  <label className="font-body text-xs text-white/50 mb-1 block">Телефон *</label>
+                  <input name="phone" required value={form.phone} onChange={handleChange}
+                    placeholder="+7 (999) 000-00-00"
+                    className="w-full bg-brand-border/40 border border-brand-border rounded-xl px-3 py-2.5 font-body text-sm text-white placeholder-white/25 focus:outline-none focus:border-brand-orange/60 transition-colors" />
+                </div>
+              </div>
+              <div>
+                <label className="font-body text-xs text-white/50 mb-1 block">Email</label>
+                <input name="email" value={form.email} onChange={handleChange}
+                  placeholder="email@company.ru"
+                  className="w-full bg-brand-border/40 border border-brand-border rounded-xl px-3 py-2.5 font-body text-sm text-white placeholder-white/25 focus:outline-none focus:border-brand-orange/60 transition-colors" />
+              </div>
+              <div>
+                <label className="font-body text-xs text-white/50 mb-1 block">Опишите задачу</label>
+                <textarea name="comment" value={form.comment} onChange={handleChange} rows={3}
+                  placeholder="Вид продукции, тираж, формат, сроки..."
+                  className="w-full bg-brand-border/40 border border-brand-border rounded-xl px-3 py-2.5 font-body text-sm text-white placeholder-white/25 focus:outline-none focus:border-brand-orange/60 transition-colors resize-none" />
+              </div>
+
+              {/* File attach */}
+              <div>
+                <label className="font-body text-xs text-white/50 mb-1 block">Приложите макет или ТЗ (необязательно)</label>
+                <div
+                  className="border border-dashed border-brand-border rounded-xl px-4 py-3 flex items-center gap-3 cursor-pointer hover:border-brand-orange/50 transition-colors"
+                  onClick={() => fileRef.current?.click()}
+                >
+                  <Icon name="Paperclip" size={16} className="text-brand-orange" />
+                  <span className="font-body text-sm text-white/40">
+                    {form.file ? form.file.name : "PDF, AI, PSD, PNG — до 50 МБ"}
+                  </span>
+                  <input ref={fileRef} type="file" className="hidden" onChange={handleFile}
+                    accept=".pdf,.ai,.psd,.png,.jpg,.zip" />
+                </div>
+              </div>
+
+              <button type="submit"
+                className="w-full gradient-brand text-white font-body font-bold py-3.5 rounded-xl hover:opacity-90 hover:shadow-lg hover:shadow-orange-500/40 transition-all duration-300">
+                Отправить заявку
+              </button>
+              <p className="font-body text-xs text-white/25 text-center">
+                Нажимая кнопку, вы соглашаетесь с политикой конфиденциальности
+              </p>
+            </form>
+          </>
+        ) : (
+          <div className="text-center py-8">
+            <div className="w-16 h-16 gradient-brand rounded-full flex items-center justify-center mx-auto mb-4">
+              <Icon name="CheckCircle" size={32} className="text-white" />
+            </div>
+            <h3 className="font-display text-2xl font-bold text-white mb-2">Заявка принята!</h3>
+            <p className="font-body text-white/50 mb-6">Менеджер свяжется с вами в течение 30 минут</p>
+            <button onClick={onClose} className="gradient-brand text-white font-body font-semibold px-6 py-3 rounded-xl">
+              Закрыть
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── QUIZ MODAL ──────────────────────────────────────────────────────────────
+function QuizModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [step, setStep] = useState(0);
+  const [answers, setAnswers] = useState({ type: "", format: "", qty: "", deadline: "", name: "", phone: "" });
+  const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    if (open) { setStep(0); setDone(false); setAnswers({ type: "", format: "", qty: "", deadline: "", name: "", phone: "" }); }
+    document.body.style.overflow = open ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [open]);
+
+  if (!open) return null;
+
+  const steps = [
+    {
+      title: "Что нужно напечатать?",
+      subtitle: "Выберите вид продукции",
+      field: "type" as const,
+      options: [
+        { label: "Каталог", icon: "BookOpen" },
+        { label: "Журнал", icon: "FileText" },
+        { label: "Брошюра", icon: "Layers" },
+        { label: "Буклет / Листовка", icon: "File" },
+      ],
+    },
+    {
+      title: "Формат и объём",
+      subtitle: "Выберите формат издания",
+      field: "format" as const,
+      options: [
+        { label: "А6 (карманный)", icon: "Smartphone" },
+        { label: "А5 (половина А4)", icon: "Tablet" },
+        { label: "А4 (стандарт)", icon: "Monitor" },
+        { label: "А3 (большой)", icon: "Layout" },
+      ],
+    },
+    {
+      title: "Тираж",
+      subtitle: "Сколько экземпляров нужно?",
+      field: "qty" as const,
+      options: [
+        { label: "До 500 шт.", icon: "Package" },
+        { label: "500 — 2 000 шт.", icon: "Boxes" },
+        { label: "2 000 — 10 000 шт.", icon: "Warehouse" },
+        { label: "Более 10 000 шт.", icon: "Building2" },
+      ],
+    },
+    {
+      title: "Когда нужно?",
+      subtitle: "Укажите желаемый срок",
+      field: "deadline" as const,
+      options: [
+        { label: "Срочно — 1-2 дня", icon: "Zap" },
+        { label: "3-5 дней", icon: "Clock3" },
+        { label: "1-2 недели", icon: "CalendarDays" },
+        { label: "Без ограничений", icon: "Infinity" },
+      ],
+    },
+  ];
+
+  const isContactStep = step === steps.length;
+  const progress = isContactStep ? 100 : Math.round((step / steps.length) * 100);
+
+  const handleOption = (val: string) => {
+    const field = steps[step].field;
+    setAnswers({ ...answers, [field]: val });
+    setTimeout(() => setStep(step + 1), 250);
+  };
+
+  const handleContact = (e: React.FormEvent) => {
+    e.preventDefault();
+    setDone(true);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" />
+      <div
+        className="relative z-10 card-dark rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Progress bar */}
+        <div className="h-1 bg-brand-border">
+          <div
+            className="h-full gradient-brand transition-all duration-500"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+
+        <div className="p-8">
+          <button onClick={onClose} className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors">
+            <Icon name="X" size={20} />
+          </button>
+
+          {!done ? (
+            <>
+              {/* Step indicator */}
+              <div className="flex items-center gap-2 mb-6">
+                {steps.map((_, i) => (
+                  <div key={i} className={`h-1.5 rounded-full flex-1 transition-all duration-300 ${i <= step ? "gradient-brand" : "bg-brand-border"}`} />
+                ))}
+              </div>
+
+              {!isContactStep ? (
+                <>
+                  <div className="mb-6">
+                    <p className="font-body text-xs text-brand-orange font-medium mb-1">
+                      Шаг {step + 1} из {steps.length}
+                    </p>
+                    <h3 className="font-display text-2xl font-bold text-white mb-1">{steps[step].title}</h3>
+                    <p className="font-body text-sm text-white/50">{steps[step].subtitle}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {steps[step].options.map((opt) => (
+                      <button
+                        key={opt.label}
+                        onClick={() => handleOption(opt.label)}
+                        className={`flex items-center gap-3 px-4 py-4 rounded-xl border text-left transition-all duration-200 hover:border-brand-orange/60 hover:bg-brand-orange/10 ${
+                          (answers as Record<string, string>)[steps[step].field] === opt.label
+                            ? "border-brand-orange bg-brand-orange/15 text-white"
+                            : "border-brand-border text-white/60"
+                        }`}
+                      >
+                        <Icon name={opt.icon as LucideIconName} size={18} className="text-brand-orange flex-shrink-0" />
+                        <span className="font-body text-sm">{opt.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {step > 0 && (
+                    <button onClick={() => setStep(step - 1)} className="mt-4 font-body text-sm text-white/30 hover:text-white/60 transition-colors flex items-center gap-1">
+                      <Icon name="ChevronLeft" size={14} /> Назад
+                    </button>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="mb-6">
+                    <div className="w-12 h-12 gradient-brand rounded-xl flex items-center justify-center mb-4">
+                      <Icon name="SendHorizontal" size={20} className="text-white" />
+                    </div>
+                    <h3 className="font-display text-2xl font-bold text-white mb-1">Готово! Последний шаг</h3>
+                    <p className="font-body text-sm text-white/50">Оставьте контакты — пришлём КП с точными ценами</p>
+                  </div>
+
+                  {/* Summary */}
+                  <div className="bg-brand-orange/5 border border-brand-orange/20 rounded-xl p-4 mb-6">
+                    <p className="font-body text-xs text-brand-orange font-medium mb-2">Ваш запрос:</p>
+                    {(Object.entries(answers) as [string, string][]).filter(([k, v]) => v && !["name", "phone"].includes(k)).map(([k, v]) => (
+                      <div key={k} className="font-body text-xs text-white/60 flex gap-2">
+                        <span className="text-white/30">·</span>{v}
+                      </div>
+                    ))}
+                  </div>
+
+                  <form onSubmit={handleContact} className="space-y-3">
+                    <div>
+                      <input name="name" required value={answers.name}
+                        onChange={(e) => setAnswers({ ...answers, name: e.target.value })}
+                        placeholder="Ваше имя"
+                        className="w-full bg-brand-border/40 border border-brand-border rounded-xl px-4 py-3 font-body text-sm text-white placeholder-white/25 focus:outline-none focus:border-brand-orange/60 transition-colors" />
+                    </div>
+                    <div>
+                      <input name="phone" required value={answers.phone}
+                        onChange={(e) => setAnswers({ ...answers, phone: e.target.value })}
+                        placeholder="+7 (999) 000-00-00"
+                        className="w-full bg-brand-border/40 border border-brand-border rounded-xl px-4 py-3 font-body text-sm text-white placeholder-white/25 focus:outline-none focus:border-brand-orange/60 transition-colors" />
+                    </div>
+                    <button type="submit"
+                      className="w-full gradient-brand text-white font-body font-bold py-3.5 rounded-xl hover:opacity-90 hover:shadow-lg hover:shadow-orange-500/40 transition-all duration-300">
+                      Получить коммерческое предложение
+                    </button>
+                  </form>
+                  <button onClick={() => setStep(step - 1)} className="mt-3 font-body text-sm text-white/30 hover:text-white/60 transition-colors flex items-center gap-1">
+                    <Icon name="ChevronLeft" size={14} /> Назад
+                  </button>
+                </>
+              )}
+            </>
+          ) : (
+            /* Thank you page */
+            <div className="text-center py-6">
+              <div className="relative mx-auto w-24 h-24 mb-6">
+                <div className="absolute inset-0 gradient-brand rounded-full opacity-20 animate-ping" />
+                <div className="relative w-24 h-24 gradient-brand rounded-full flex items-center justify-center">
+                  <Icon name="CheckCheck" size={40} className="text-white" />
+                </div>
+              </div>
+              <h3 className="font-display text-3xl font-bold text-white mb-3">Заявка отправлена!</h3>
+              <p className="font-body text-white/50 mb-2">Наш менеджер свяжется с вами <span className="text-white/80 font-semibold">в течение 30 минут</span></p>
+              <p className="font-body text-sm text-white/40 mb-8">Пока ждёте — посмотрите наши примеры работ</p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <button
+                  onClick={() => { onClose(); setTimeout(() => scrollTo("portfolio"), 100); }}
+                  className="gradient-brand text-white font-body font-semibold px-6 py-3 rounded-xl hover:opacity-90 transition-all"
+                >
+                  Смотреть портфолио
+                </button>
+                <button onClick={onClose} className="border border-brand-border text-white/60 font-body text-sm px-6 py-3 rounded-xl hover:text-white hover:border-brand-orange/40 transition-all">
+                  Закрыть
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── PORTFOLIO GALLERY MODAL ─────────────────────────────────────────────────
+const PORTFOLIO_IMAGES = [
+  "https://cdn.poehali.dev/projects/da385d66-65ef-4fb8-ad72-1f323f1031fe/files/f68860e6-a6b2-4771-99fa-69c7dce9abeb.jpg",
+  "https://cdn.poehali.dev/projects/da385d66-65ef-4fb8-ad72-1f323f1031fe/files/c55c724a-74ce-4e04-8533-b64dec268361.jpg",
+  "https://cdn.poehali.dev/projects/da385d66-65ef-4fb8-ad72-1f323f1031fe/files/64f3262a-520d-4cab-aef9-6ed384fb3754.jpg",
+  "https://cdn.poehali.dev/projects/da385d66-65ef-4fb8-ad72-1f323f1031fe/files/c99943b6-8dc2-4912-922e-3611a4017aa7.jpg",
+];
+
+function GalleryModal({ open, onClose, project }: { open: boolean; onClose: () => void; project: { title: string; category: string } | null }) {
+  const [idx, setIdx] = useState(0);
+
+  useEffect(() => {
+    if (open) { setIdx(0); document.body.style.overflow = "hidden"; }
+    else document.body.style.overflow = "";
+    return () => { document.body.style.overflow = ""; };
+  }, [open]);
+
+  if (!open || !project) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/85 backdrop-blur-sm" />
+      <div
+        className="relative z-10 w-full max-w-3xl card-dark rounded-2xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-6 py-4 border-b border-brand-border">
+          <div>
+            <h3 className="font-display text-lg font-bold text-white">{project.title}</h3>
+            <span className="font-body text-xs text-brand-orange">{project.category}</span>
+          </div>
+          <button onClick={onClose} className="text-white/40 hover:text-white transition-colors">
+            <Icon name="X" size={20} />
+          </button>
+        </div>
+
+        {/* Main image */}
+        <div className="relative aspect-video bg-brand-card">
+          <img src={PORTFOLIO_IMAGES[idx]} alt={project.title} className="w-full h-full object-cover" />
+          <button
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-black/50 hover:bg-brand-orange/80 rounded-full flex items-center justify-center transition-colors"
+            onClick={() => setIdx((idx - 1 + PORTFOLIO_IMAGES.length) % PORTFOLIO_IMAGES.length)}
+          >
+            <Icon name="ChevronLeft" size={18} className="text-white" />
+          </button>
+          <button
+            className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-black/50 hover:bg-brand-orange/80 rounded-full flex items-center justify-center transition-colors"
+            onClick={() => setIdx((idx + 1) % PORTFOLIO_IMAGES.length)}
+          >
+            <Icon name="ChevronRight" size={18} className="text-white" />
+          </button>
+          <div className="absolute bottom-3 right-3 bg-black/60 text-white/70 font-body text-xs px-2.5 py-1 rounded-full">
+            {idx + 1} / {PORTFOLIO_IMAGES.length}
+          </div>
+        </div>
+
+        {/* Thumbnails */}
+        <div className="flex gap-2 p-4">
+          {PORTFOLIO_IMAGES.map((img, i) => (
+            <button key={i} onClick={() => setIdx(i)}
+              className={`flex-1 aspect-video rounded-lg overflow-hidden border-2 transition-all ${i === idx ? "border-brand-orange" : "border-transparent opacity-60 hover:opacity-100"}`}>
+              <img src={img} alt="" className="w-full h-full object-cover" />
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── NAV ─────────────────────────────────────────────────────────────────────
+function Nav({ onOrder }: { onOrder: () => void }) {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -15,55 +419,39 @@ function Nav() {
   }, []);
 
   const links = [
-    { label: "Услуги", href: "#services" },
-    { label: "Портфолио", href: "#portfolio" },
-    { label: "Калькулятор", href: "#calculator" },
-    { label: "Отзывы", href: "#reviews" },
-    { label: "Контакты", href: "#contacts" },
+    { label: "Услуги", id: "services" },
+    { label: "Портфолио", id: "portfolio" },
+    { label: "Калькулятор", id: "calculator" },
+    { label: "Отзывы", id: "reviews" },
+    { label: "Контакты", id: "contacts" },
   ];
 
   return (
-    <nav
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-        scrolled
-          ? "bg-brand-dark/95 backdrop-blur-md border-b border-brand-border shadow-lg"
-          : "bg-transparent"
-      }`}
-    >
-      <div className="max-w-7xl mx-auto px-6 h-18 flex items-center justify-between py-4">
+    <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${scrolled ? "bg-brand-dark/95 backdrop-blur-md border-b border-brand-border shadow-lg" : "bg-transparent"}`}>
+      <div className="max-w-7xl mx-auto px-6 flex items-center justify-between py-4">
         <a href="#" className="flex items-center gap-3 group">
           <div className="w-9 h-9 gradient-brand rounded-lg flex items-center justify-center rotate-6 group-hover:rotate-0 transition-transform duration-300">
             <Icon name="Printer" size={18} className="text-white" />
           </div>
-          <span className="font-display text-xl font-bold tracking-wider text-white">
-            ПРИНТ<span className="gradient-text">МАСТЕР</span>
-          </span>
+          <span className="font-display text-xl font-bold tracking-wider text-white">ПРИНТ<span className="gradient-text">МАСТЕР</span></span>
         </a>
 
         <div className="hidden md:flex items-center gap-8">
           {links.map((l) => (
-            <a
-              key={l.href}
-              href={l.href}
-              className="font-body text-sm text-white/70 hover:text-white transition-colors relative group"
-            >
+            <button key={l.id} onClick={() => scrollTo(l.id)}
+              className="font-body text-sm text-white/70 hover:text-white transition-colors relative group">
               {l.label}
               <span className="absolute -bottom-1 left-0 w-0 h-0.5 gradient-brand group-hover:w-full transition-all duration-300" />
-            </a>
+            </button>
           ))}
         </div>
 
-        <a
-          href="#contacts"
-          className="hidden md:flex gradient-brand text-white font-body font-semibold text-sm px-5 py-2.5 rounded-lg hover:opacity-90 hover:shadow-lg hover:shadow-orange-500/30 transition-all duration-300"
-        >
+        <button onClick={onOrder}
+          className="hidden md:flex gradient-brand text-white font-body font-semibold text-sm px-5 py-2.5 rounded-lg hover:opacity-90 hover:shadow-lg hover:shadow-orange-500/30 transition-all duration-300">
           Заказать печать
-        </a>
+        </button>
 
-        <button
-          className="md:hidden text-white"
-          onClick={() => setMenuOpen(!menuOpen)}
-        >
+        <button className="md:hidden text-white" onClick={() => setMenuOpen(!menuOpen)}>
           <Icon name={menuOpen ? "X" : "Menu"} size={24} />
         </button>
       </div>
@@ -71,94 +459,85 @@ function Nav() {
       {menuOpen && (
         <div className="md:hidden bg-brand-dark/98 border-t border-brand-border px-6 py-4 flex flex-col gap-4">
           {links.map((l) => (
-            <a
-              key={l.href}
-              href={l.href}
-              onClick={() => setMenuOpen(false)}
-              className="font-body text-white/80 hover:text-white py-2 border-b border-brand-border"
-            >
+            <button key={l.id} onClick={() => { scrollTo(l.id); setMenuOpen(false); }}
+              className="font-body text-white/80 hover:text-white py-2 border-b border-brand-border text-left">
               {l.label}
-            </a>
+            </button>
           ))}
-          <a
-            href="#contacts"
-            onClick={() => setMenuOpen(false)}
-            className="gradient-brand text-white font-body font-semibold text-center py-3 rounded-lg mt-2"
-          >
+          <button onClick={() => { onOrder(); setMenuOpen(false); }}
+            className="gradient-brand text-white font-body font-semibold text-center py-3 rounded-lg mt-2">
             Заказать печать
-          </a>
+          </button>
         </div>
       )}
     </nav>
   );
 }
 
-// ─── HERO ────────────────────────────────────────────────────────────────────
-function Hero() {
+// ─── HERO ─────────────────────────────────────────────────────────────────────
+function Hero({ onQuiz }: { onQuiz: () => void }) {
+  const galleryItems = [
+    { img: PORTFOLIO_IMAGES[0], label: "Каталог А4 · 96 стр." },
+    { img: PORTFOLIO_IMAGES[1], label: "Корп. журнал · 48 стр." },
+    { img: PORTFOLIO_IMAGES[2], label: "Брошюры · Евростандарт" },
+    { img: PORTFOLIO_IMAGES[3], label: "Блокноты · Премиум" },
+  ];
+  const [activeGallery, setActiveGallery] = useState(0);
+
+  useEffect(() => {
+    const t = setInterval(() => setActiveGallery((i) => (i + 1) % galleryItems.length), 3000);
+    return () => clearInterval(t);
+  }, []);
+
   return (
     <section className="relative min-h-screen flex items-center overflow-hidden bg-brand-dark">
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-1/4 -left-32 w-96 h-96 rounded-full bg-brand-orange/20 blur-3xl animate-float" />
-        <div
-          className="absolute bottom-1/4 -right-32 w-80 h-80 rounded-full bg-brand-amber/15 blur-3xl animate-float"
-          style={{ animationDelay: "2s" }}
-        />
-        <div
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-brand-orange/5 blur-3xl animate-float"
-          style={{ animationDelay: "4s" }}
-        />
-        <div
-          className="absolute inset-0 opacity-5"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(255,87,34,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(255,87,34,0.3) 1px, transparent 1px)",
-            backgroundSize: "60px 60px",
-          }}
-        />
+        <div className="absolute bottom-1/4 -right-32 w-80 h-80 rounded-full bg-brand-amber/15 blur-3xl animate-float" style={{ animationDelay: "2s" }} />
+        <div className="absolute inset-0 opacity-5" style={{ backgroundImage: "linear-gradient(rgba(255,87,34,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(255,87,34,0.3) 1px, transparent 1px)", backgroundSize: "60px 60px" }} />
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-6 pt-24 pb-16 grid lg:grid-cols-2 gap-16 items-center">
+        {/* Text */}
         <div className="animate-fade-up">
           <div className="inline-flex items-center gap-2 bg-brand-orange/10 border border-brand-orange/30 rounded-full px-4 py-1.5 mb-6">
             <div className="w-2 h-2 rounded-full bg-brand-orange animate-pulse" />
-            <span className="font-body text-sm text-brand-orange font-medium">
-              Москва · Печать от 1 дня
-            </span>
+            <span className="font-body text-sm text-brand-orange font-medium">Москва · Печать от 1 дня</span>
           </div>
 
-          <h1 className="font-display text-5xl md:text-6xl lg:text-7xl font-bold leading-tight text-white mb-6">
-            ПЕЧАТАЕМ
-            <br />
-            <span className="gradient-text">ВАШУ ИДЕЮ</span>
-            <br />
-            В ЖИЗНЬ
+          <h1 className="font-display text-5xl md:text-6xl lg:text-7xl font-bold leading-tight text-white mb-4">
+            ПЕЧАТАЕМ<br /><span className="gradient-text">ВАШУ ИДЕЮ</span><br />В ЖИЗНЬ
           </h1>
 
-          <p className="font-body text-lg text-white/60 leading-relaxed mb-10 max-w-md">
+          {/* New subheadline */}
+          <div className="flex flex-col sm:flex-row gap-3 mb-8">
+            <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5">
+              <Icon name="Package" size={16} className="text-brand-amber" />
+              <span className="font-body text-sm text-white/80">от <span className="font-bold text-white">500 шт.</span> в Москве</span>
+            </div>
+            <div className="inline-flex items-center gap-2 bg-green-500/10 border border-green-500/25 rounded-xl px-4 py-2.5">
+              <Icon name="BadgePercent" size={16} className="text-green-400" />
+              <span className="font-body text-sm text-white/80">Скидка <span className="font-bold text-green-400">10%</span> для новых заказчиков</span>
+            </div>
+          </div>
+
+          <p className="font-body text-base text-white/55 leading-relaxed mb-8 max-w-md">
             Каталоги, журналы, брошюры — профессиональная полиграфия для бизнеса. Быстро, качественно, с гарантией.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4">
-            <a
-              href="#calculator"
-              className="gradient-brand text-white font-body font-bold text-base px-8 py-4 rounded-xl hover:opacity-90 hover:shadow-xl hover:shadow-orange-500/40 transition-all duration-300 text-center"
-            >
+            <button onClick={onQuiz}
+              className="gradient-brand text-white font-body font-bold text-base px-8 py-4 rounded-xl hover:opacity-90 hover:shadow-xl hover:shadow-orange-500/40 transition-all duration-300 text-center">
               Рассчитать стоимость
-            </a>
-            <a
-              href="#portfolio"
-              className="border border-brand-border text-white font-body font-semibold text-base px-8 py-4 rounded-xl hover:border-brand-orange/50 hover:bg-brand-orange/5 transition-all duration-300 text-center"
-            >
+            </button>
+            <button onClick={() => scrollTo("portfolio")}
+              className="border border-brand-border text-white font-body font-semibold text-base px-8 py-4 rounded-xl hover:border-brand-orange/50 hover:bg-brand-orange/5 transition-all duration-300 text-center">
               Смотреть работы
-            </a>
+            </button>
           </div>
 
-          <div className="grid grid-cols-3 gap-6 mt-14 pt-10 border-t border-brand-border">
-            {[
-              { num: "15+", label: "лет на рынке" },
-              { num: "4 000+", label: "проектов сдано" },
-              { num: "98%", label: "клиентов довольны" },
-            ].map((s) => (
+          <div className="grid grid-cols-3 gap-6 mt-12 pt-10 border-t border-brand-border">
+            {[{ num: "15+", label: "лет на рынке" }, { num: "4 000+", label: "проектов сдано" }, { num: "98%", label: "клиентов довольны" }].map((s) => (
               <div key={s.num}>
                 <div className="font-display text-2xl font-bold gradient-text mb-1">{s.num}</div>
                 <div className="font-body text-xs text-white/50">{s.label}</div>
@@ -167,49 +546,37 @@ function Hero() {
           </div>
         </div>
 
-        <div className="relative hidden lg:flex items-center justify-center">
-          <div className="relative w-full max-w-md">
-            <div className="relative z-10 card-dark rounded-3xl p-8 shadow-2xl hover-lift">
-              <div
-                className="gradient-brand rounded-2xl h-48 mb-6 flex items-center justify-center relative overflow-hidden"
-              >
-                <div
-                  className="absolute inset-0 opacity-20"
-                  style={{
-                    backgroundImage:
-                      "repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.1) 10px, rgba(255,255,255,0.1) 11px)",
-                  }}
-                />
-                <Icon name="BookOpen" size={64} className="text-white/80" />
-              </div>
-              <div className="font-display text-xl font-bold text-white mb-2">
-                Каталог А4, 48 стр.
-              </div>
-              <div className="font-body text-white/50 text-sm mb-4">
-                Мелованная бумага 130г · Тираж 500 шт.
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="font-body text-xs text-white/40 mb-0.5">Стоимость</div>
-                  <div className="font-display text-2xl font-bold gradient-text">24 500 ₽</div>
-                </div>
-                <div className="bg-green-500/20 border border-green-500/30 text-green-400 font-body text-xs px-3 py-1.5 rounded-full">
-                  Готов через 5 дней
-                </div>
+        {/* Gallery */}
+        <div className="hidden lg:block">
+          <div className="relative">
+            {/* Big main card */}
+            <div className="relative rounded-2xl overflow-hidden shadow-2xl">
+              <img
+                src={galleryItems[activeGallery].img}
+                alt={galleryItems[activeGallery].label}
+                className="w-full h-72 object-cover transition-all duration-700"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+              <div className="absolute bottom-4 left-4">
+                <span className="font-body text-xs bg-brand-orange/90 text-white px-3 py-1 rounded-full">
+                  {galleryItems[activeGallery].label}
+                </span>
               </div>
             </div>
 
-            <div className="absolute -top-4 -right-4 gradient-brand rounded-2xl p-3 shadow-lg animate-float z-20">
-              <Icon name="Award" size={28} className="text-white" />
+            {/* Thumbnails row */}
+            <div className="grid grid-cols-4 gap-2 mt-2">
+              {galleryItems.map((item, i) => (
+                <button key={i} onClick={() => setActiveGallery(i)}
+                  className={`relative rounded-xl overflow-hidden aspect-square border-2 transition-all duration-300 ${i === activeGallery ? "border-brand-orange scale-105" : "border-transparent opacity-60 hover:opacity-90"}`}>
+                  <img src={item.img} alt={item.label} className="w-full h-full object-cover" />
+                </button>
+              ))}
             </div>
-            <div
-              className="absolute -bottom-4 -left-4 card-glass rounded-2xl px-4 py-3 shadow-lg animate-float z-20"
-              style={{ animationDelay: "1.5s" }}
-            >
-              <div className="font-body text-xs text-white/60 mb-0.5">Новый заказ</div>
-              <div className="font-body text-sm font-semibold text-white">
-                Журнал B5 · 1000 шт.
-              </div>
+
+            {/* Floating badge */}
+            <div className="absolute -top-3 -right-3 gradient-brand rounded-2xl p-3 shadow-lg animate-float z-10">
+              <Icon name="Award" size={26} className="text-white" />
             </div>
           </div>
         </div>
@@ -226,88 +593,37 @@ function Hero() {
 // ─── SERVICES ────────────────────────────────────────────────────────────────
 function Services() {
   const services = [
-    {
-      icon: "BookOpen",
-      title: "Каталоги",
-      desc: "Профессиональные каталоги продукции и услуг. Полноцветная печать, твёрдая и мягкая обложка, любой формат.",
-      features: ["А4, А5, А3", "До 500 страниц", "Полноцветная"],
-      color: "from-orange-500 to-red-500",
-    },
-    {
-      icon: "FileText",
-      title: "Журналы",
-      desc: "Корпоративные и рекламные журналы. Брошюровка скобой или на клею, мелованная и офсетная бумага.",
-      features: ["А4, B5, А5", "Скоба или КБС", "Мелованная"],
-      color: "from-amber-500 to-orange-500",
-    },
-    {
-      icon: "Layers",
-      title: "Брошюры",
-      desc: "Информационные и рекламные брошюры. Фальцовка, биговка, любое количество полос от 4 до 80.",
-      features: ["Любой формат", "Евростандарт", "Фальцовка"],
-      color: "from-red-500 to-pink-500",
-    },
-    {
-      icon: "Package",
-      title: "Буклеты",
-      desc: "Фирменные буклеты и листовки для промо-акций, выставок и продаж. Быстрый срок изготовления.",
-      features: ["А4, А5, А6", "Лак, ламинация", "Срочная"],
-      color: "from-orange-400 to-amber-400",
-    },
-    {
-      icon: "BookMarked",
-      title: "Блокноты",
-      desc: "Корпоративные блокноты и записные книжки с вашим логотипом. Отличный корпоративный подарок.",
-      features: ["А5, А6", "Твёрдая обложка", "Логотип"],
-      color: "from-rose-500 to-orange-500",
-    },
-    {
-      icon: "Newspaper",
-      title: "Газеты",
-      desc: "Корпоративные и рекламные газеты на офсетной бумаге. Большие тиражи по выгодным ценам.",
-      features: ["А2, А3", "Офсетная печать", "Большие тиражи"],
-      color: "from-amber-400 to-yellow-500",
-    },
+    { icon: "BookOpen", title: "Каталоги", desc: "Профессиональные каталоги продукции. Полноцветная печать, любой формат.", features: ["А4, А5, А3", "До 500 страниц", "Полноцветная"], color: "from-orange-500 to-red-500" },
+    { icon: "FileText", title: "Журналы", desc: "Корпоративные и рекламные журналы. Скоба или клей, любая бумага.", features: ["А4, B5, А5", "Скоба или КБС", "Мелованная"], color: "from-amber-500 to-orange-500" },
+    { icon: "Layers", title: "Брошюры", desc: "Рекламные брошюры. Фальцовка, биговка, от 4 до 80 полос.", features: ["Любой формат", "Евростандарт", "Фальцовка"], color: "from-red-500 to-pink-500" },
+    { icon: "Package", title: "Буклеты", desc: "Буклеты и листовки для промо и продаж. Срочная печать.", features: ["А4, А5, А6", "Лак, ламинация", "Срочная"], color: "from-orange-400 to-amber-400" },
+    { icon: "BookMarked", title: "Блокноты", desc: "Корпоративные блокноты с логотипом. Отличный подарок.", features: ["А5, А6", "Твёрдая обложка", "Логотип"], color: "from-rose-500 to-orange-500" },
+    { icon: "Newspaper", title: "Газеты", desc: "Корпоративные газеты на офсетной бумаге. Большие тиражи.", features: ["А2, А3", "Офсетная печать", "Большие тиражи"], color: "from-amber-400 to-yellow-500" },
   ];
 
   return (
     <section id="services" className="py-24 bg-brand-dark relative overflow-hidden">
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-brand-orange/5 rounded-full blur-3xl" />
-      </div>
-
+      <div className="absolute top-0 right-0 w-96 h-96 bg-brand-orange/5 rounded-full blur-3xl pointer-events-none" />
       <div className="max-w-7xl mx-auto px-6 relative z-10">
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 bg-brand-orange/10 border border-brand-orange/30 rounded-full px-4 py-1.5 mb-4">
             <Icon name="Layers" size={14} className="text-brand-orange" />
             <span className="font-body text-sm text-brand-orange font-medium">Что мы печатаем</span>
           </div>
-          <h2 className="font-display text-4xl md:text-5xl font-bold text-white mb-4">
-            ВИДЫ <span className="gradient-text">ПОЛИГРАФИИ</span>
-          </h2>
-          <p className="font-body text-white/50 max-w-xl mx-auto">
-            Полный спектр печатной продукции для вашего бизнеса
-          </p>
+          <h2 className="font-display text-4xl md:text-5xl font-bold text-white mb-4">ВИДЫ <span className="gradient-text">ПОЛИГРАФИИ</span></h2>
+          <p className="font-body text-white/50 max-w-xl mx-auto">Полный спектр печатной продукции для вашего бизнеса</p>
         </div>
-
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {services.map((s) => (
             <div key={s.title} className="card-dark rounded-2xl p-6 hover-lift group cursor-pointer">
-              <div
-                className={`w-12 h-12 rounded-xl bg-gradient-to-br ${s.color} flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300`}
-              >
+              <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${s.color} flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300`}>
                 <Icon name={s.icon as LucideIconName} size={22} className="text-white" />
               </div>
               <h3 className="font-display text-xl font-bold text-white mb-3">{s.title}</h3>
               <p className="font-body text-white/50 text-sm leading-relaxed mb-5">{s.desc}</p>
               <div className="flex flex-wrap gap-2">
                 {s.features.map((f) => (
-                  <span
-                    key={f}
-                    className="font-body text-xs bg-brand-orange/10 border border-brand-orange/20 text-brand-orange px-2.5 py-1 rounded-md"
-                  >
-                    {f}
-                  </span>
+                  <span key={f} className="font-body text-xs bg-brand-orange/10 border border-brand-orange/20 text-brand-orange px-2.5 py-1 rounded-md">{f}</span>
                 ))}
               </div>
             </div>
@@ -319,84 +635,72 @@ function Services() {
 }
 
 // ─── PORTFOLIO ───────────────────────────────────────────────────────────────
-function Portfolio() {
+function Portfolio({ onShowAll }: { onShowAll: () => void }) {
+  const [gallery, setGallery] = useState<{ title: string; category: string } | null>(null);
+
   const projects = [
-    { title: "Каталог Rossmann", category: "Каталог", pages: "96 стр · А4", qty: "5 000 шт.", color: "from-orange-600 to-red-700", icon: "BookOpen" },
-    { title: "Корп. журнал TechGroup", category: "Журнал", pages: "48 стр · B5", qty: "2 000 шт.", color: "from-amber-500 to-orange-600", icon: "FileText" },
-    { title: "Брошюра Skolkovo", category: "Брошюра", pages: "24 стр · А4", qty: "10 000 шт.", color: "from-red-600 to-rose-700", icon: "Layers" },
-    { title: "Каталог Leroy Merlin", category: "Каталог", pages: "128 стр · А4", qty: "20 000 шт.", color: "from-orange-500 to-amber-600", icon: "BookOpen" },
-    { title: "Блокноты СберБанк", category: "Блокноты", pages: "80 стр · А5", qty: "3 000 шт.", color: "from-rose-500 to-orange-600", icon: "BookMarked" },
-    { title: "Журнал Fashion House", category: "Журнал", pages: "64 стр · А4", qty: "8 000 шт.", color: "from-amber-400 to-orange-500", icon: "Newspaper" },
+    { title: "Каталог Rossmann", category: "Каталог", pages: "96 стр · А4", qty: "5 000 шт.", color: "from-orange-600 to-red-700", img: PORTFOLIO_IMAGES[0] },
+    { title: "Корп. журнал TechGroup", category: "Журнал", pages: "48 стр · B5", qty: "2 000 шт.", color: "from-amber-500 to-orange-600", img: PORTFOLIO_IMAGES[1] },
+    { title: "Брошюра Skolkovo", category: "Брошюра", pages: "24 стр · А4", qty: "10 000 шт.", color: "from-red-600 to-rose-700", img: PORTFOLIO_IMAGES[2] },
+    { title: "Блокноты СберБанк", category: "Блокноты", pages: "80 стр · А5", qty: "3 000 шт.", color: "from-rose-500 to-orange-600", img: PORTFOLIO_IMAGES[3] },
+    { title: "Каталог Leroy Merlin", category: "Каталог", pages: "128 стр · А4", qty: "20 000 шт.", color: "from-orange-500 to-amber-600", img: PORTFOLIO_IMAGES[0] },
+    { title: "Журнал Fashion House", category: "Журнал", pages: "64 стр · А4", qty: "8 000 шт.", color: "from-amber-400 to-orange-500", img: PORTFOLIO_IMAGES[1] },
   ];
 
   return (
-    <section id="portfolio" className="py-24 bg-[#0A0806] relative overflow-hidden">
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-brand-orange/5 rounded-full blur-3xl" />
-      </div>
+    <>
+      <GalleryModal open={!!gallery} onClose={() => setGallery(null)} project={gallery} />
 
-      <div className="max-w-7xl mx-auto px-6 relative z-10">
-        <div className="text-center mb-16">
-          <div className="inline-flex items-center gap-2 bg-brand-orange/10 border border-brand-orange/30 rounded-full px-4 py-1.5 mb-4">
-            <Icon name="Image" size={14} className="text-brand-orange" />
-            <span className="font-body text-sm text-brand-orange font-medium">Наши работы</span>
+      <section id="portfolio" className="py-24 bg-[#0A0806] relative overflow-hidden">
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-brand-orange/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="max-w-7xl mx-auto px-6 relative z-10">
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center gap-2 bg-brand-orange/10 border border-brand-orange/30 rounded-full px-4 py-1.5 mb-4">
+              <Icon name="Image" size={14} className="text-brand-orange" />
+              <span className="font-body text-sm text-brand-orange font-medium">Наши работы</span>
+            </div>
+            <h2 className="font-display text-4xl md:text-5xl font-bold text-white mb-4"><span className="gradient-text">ПОРТФОЛИО</span></h2>
+            <p className="font-body text-white/50 max-w-xl mx-auto">Более 4 000 реализованных проектов для крупных брендов и малого бизнеса</p>
           </div>
-          <h2 className="font-display text-4xl md:text-5xl font-bold text-white mb-4">
-            <span className="gradient-text">ПОРТФОЛИО</span>
-          </h2>
-          <p className="font-body text-white/50 max-w-xl mx-auto">
-            Более 4 000 реализованных проектов для крупных брендов и малого бизнеса
-          </p>
-        </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {projects.map((p) => (
-            <div key={p.title} className="group relative rounded-2xl overflow-hidden cursor-pointer">
-              <div className={`bg-gradient-to-br ${p.color} h-52 flex items-center justify-center relative overflow-hidden`}>
-                <div
-                  className="absolute inset-0 opacity-10"
-                  style={{
-                    backgroundImage:
-                      "repeating-linear-gradient(45deg, transparent, transparent 8px, rgba(255,255,255,0.15) 8px, rgba(255,255,255,0.15) 9px)",
-                  }}
-                />
-                <Icon
-                  name={p.icon as LucideIconName}
-                  size={56}
-                  className="text-white/50 group-hover:text-white/70 group-hover:scale-110 transition-all duration-500"
-                />
-                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                  <div className="gradient-brand rounded-full p-3">
-                    <Icon name="Eye" size={20} className="text-white" />
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {projects.map((p) => (
+              <div key={p.title} className="group relative rounded-2xl overflow-hidden cursor-pointer" onClick={() => setGallery({ title: p.title, category: p.category })}>
+                <div className="relative h-52 overflow-hidden">
+                  <img src={p.img} alt={p.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                    <div className="gradient-brand rounded-full p-3 shadow-lg">
+                      <Icon name="Eye" size={20} className="text-white" />
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="card-dark p-5 rounded-b-2xl border border-brand-border border-t-0">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-body text-xs bg-brand-orange/15 text-brand-orange px-2.5 py-1 rounded-md">
-                    {p.category}
-                  </span>
-                  <span className="font-body text-xs text-white/40">{p.qty}</span>
+                <div className="card-dark p-5 rounded-b-2xl border border-brand-border border-t-0">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-body text-xs bg-brand-orange/15 text-brand-orange px-2.5 py-1 rounded-md">{p.category}</span>
+                    <span className="font-body text-xs text-white/40">{p.qty}</span>
+                  </div>
+                  <h3 className="font-display text-lg font-bold text-white mb-1">{p.title}</h3>
+                  <p className="font-body text-sm text-white/40">{p.pages}</p>
                 </div>
-                <h3 className="font-display text-lg font-bold text-white mb-1">{p.title}</h3>
-                <p className="font-body text-sm text-white/40">{p.pages}</p>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
 
-        <div className="text-center mt-10">
-          <button className="border border-brand-border text-white font-body font-semibold px-8 py-3.5 rounded-xl hover:border-brand-orange/50 hover:bg-brand-orange/5 transition-all duration-300">
-            Показать все работы
-          </button>
+          <div className="text-center mt-10">
+            <button onClick={onShowAll}
+              className="border border-brand-border text-white font-body font-semibold px-8 py-3.5 rounded-xl hover:border-brand-orange/50 hover:bg-brand-orange/5 transition-all duration-300">
+              Показать все работы
+            </button>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
+    </>
   );
 }
 
 // ─── CALCULATOR ──────────────────────────────────────────────────────────────
-function Calculator() {
+function Calculator({ onQuiz }: { onQuiz: () => void }) {
   const [format, setFormat] = useState("A4");
   const [pages, setPages] = useState(48);
   const [qty, setQty] = useState(500);
@@ -415,18 +719,11 @@ function Calculator() {
     { id: "fast", label: "Срочно 3 дня", mult: 1.3 },
     { id: "express", label: "Экспресс 1 день", mult: 1.7 },
   ];
-
-  const formatPrices: Record<string, number> = {
-    A6: 0.8, A5: 1.0, A4: 1.5, A3: 2.2, B5: 1.2,
-  };
-
+  const formatPrices: Record<string, number> = { A6: 0.8, A5: 1.0, A4: 1.5, A3: 2.2, B5: 1.2 };
   const paperMult = papers.find((p) => p.id === paper)?.mult ?? 1;
   const deadlineMult = deadlines.find((d) => d.id === deadline)?.mult ?? 1;
   const qtyDiscount = qty >= 5000 ? 0.75 : qty >= 1000 ? 0.85 : qty >= 500 ? 0.92 : 1;
-  const total =
-    Math.round(
-      (formatPrices[format] * pages * 0.25 * qty * paperMult * deadlineMult * qtyDiscount) / 100
-    ) * 100;
+  const total = Math.round((formatPrices[format] * pages * 0.25 * qty * paperMult * deadlineMult * qtyDiscount) / 100) * 100;
   const perUnit = Math.round(total / qty);
   const discountPct = qty >= 5000 ? 25 : qty >= 1000 ? 15 : qty >= 500 ? 8 : 0;
 
@@ -435,178 +732,84 @@ function Calculator() {
 
   return (
     <section id="calculator" className="py-24 bg-brand-dark relative overflow-hidden">
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full bg-brand-orange/3 blur-3xl" />
-      </div>
-
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full bg-brand-orange/3 blur-3xl pointer-events-none" />
       <div className="max-w-5xl mx-auto px-6 relative z-10">
         <div className="text-center mb-12">
           <div className="inline-flex items-center gap-2 bg-brand-orange/10 border border-brand-orange/30 rounded-full px-4 py-1.5 mb-4">
             <Icon name="Calculator" size={14} className="text-brand-orange" />
             <span className="font-body text-sm text-brand-orange font-medium">Онлайн-калькулятор</span>
           </div>
-          <h2 className="font-display text-4xl md:text-5xl font-bold text-white mb-4">
-            РАССЧИТАЙТЕ <span className="gradient-text">СТОИМОСТЬ</span>
-          </h2>
-          <p className="font-body text-white/50">
-            Настройте параметры и получите мгновенную оценку стоимости печати
-          </p>
+          <h2 className="font-display text-4xl md:text-5xl font-bold text-white mb-4">РАССЧИТАЙТЕ <span className="gradient-text">СТОИМОСТЬ</span></h2>
+          <p className="font-body text-white/50">Настройте параметры и получите мгновенную оценку стоимости печати</p>
         </div>
 
         <div className="grid lg:grid-cols-5 gap-6">
-          {/* Controls */}
           <div className="lg:col-span-3 card-dark rounded-2xl p-8 space-y-8">
-            {/* Format */}
             <div>
-              <label className="font-body text-sm font-semibold text-white/70 block mb-3">
-                Формат издания
-              </label>
+              <label className="font-body text-sm font-semibold text-white/70 block mb-3">Формат издания</label>
               <div className="flex gap-2 flex-wrap">
                 {formats.map((f) => (
-                  <button
-                    key={f}
-                    onClick={() => setFormat(f)}
-                    className={`font-display text-sm font-bold px-4 py-2 rounded-lg transition-all duration-200 ${
-                      format === f
-                        ? "gradient-brand text-white shadow-lg shadow-orange-500/30"
-                        : "bg-brand-border/40 text-white/60 hover:text-white hover:bg-brand-border"
-                    }`}
-                  >
+                  <button key={f} onClick={() => setFormat(f)}
+                    className={`font-display text-sm font-bold px-4 py-2 rounded-lg transition-all duration-200 ${format === f ? "gradient-brand text-white shadow-lg shadow-orange-500/30" : "bg-brand-border/40 text-white/60 hover:text-white hover:bg-brand-border"}`}>
                     {f}
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Pages */}
             <div>
               <div className="flex justify-between mb-3">
-                <label className="font-body text-sm font-semibold text-white/70">
-                  Количество страниц
-                </label>
+                <label className="font-body text-sm font-semibold text-white/70">Количество страниц</label>
                 <span className="font-display text-lg font-bold gradient-text">{pages}</span>
               </div>
-              <input
-                type="range"
-                min={8}
-                max={320}
-                step={8}
-                value={pages}
-                onChange={(e) => setPages(Number(e.target.value))}
-                className="w-full"
-                style={{ background: pagesTrack }}
-              />
-              <div className="flex justify-between font-body text-xs text-white/30 mt-1">
-                <span>8 стр</span>
-                <span>320 стр</span>
-              </div>
+              <input type="range" min={8} max={320} step={8} value={pages} onChange={(e) => setPages(Number(e.target.value))} className="w-full" style={{ background: pagesTrack }} />
+              <div className="flex justify-between font-body text-xs text-white/30 mt-1"><span>8 стр</span><span>320 стр</span></div>
             </div>
 
-            {/* Qty */}
             <div>
               <div className="flex justify-between mb-3">
-                <label className="font-body text-sm font-semibold text-white/70">
-                  Тираж, экземпляров
-                </label>
-                <span className="font-display text-lg font-bold gradient-text">
-                  {qty.toLocaleString("ru")}
-                </span>
+                <label className="font-body text-sm font-semibold text-white/70">Тираж, экземпляров</label>
+                <span className="font-display text-lg font-bold gradient-text">{qty.toLocaleString("ru")}</span>
               </div>
-              <input
-                type="range"
-                min={100}
-                max={20000}
-                step={100}
-                value={qty}
-                onChange={(e) => setQty(Number(e.target.value))}
-                className="w-full"
-                style={{ background: qtyTrack }}
-              />
-              <div className="flex justify-between font-body text-xs text-white/30 mt-1">
-                <span>100 шт</span>
-                <span>20 000 шт</span>
-              </div>
+              <input type="range" min={100} max={20000} step={100} value={qty} onChange={(e) => setQty(Number(e.target.value))} className="w-full" style={{ background: qtyTrack }} />
+              <div className="flex justify-between font-body text-xs text-white/30 mt-1"><span>100 шт</span><span>20 000 шт</span></div>
             </div>
 
-            {/* Paper */}
             <div>
-              <label className="font-body text-sm font-semibold text-white/70 block mb-3">
-                Тип бумаги
-              </label>
+              <label className="font-body text-sm font-semibold text-white/70 block mb-3">Тип бумаги</label>
               <div className="grid grid-cols-2 gap-2">
                 {papers.map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => setPaper(p.id)}
-                    className={`font-body text-sm px-4 py-3 rounded-lg text-left transition-all duration-200 ${
-                      paper === p.id
-                        ? "bg-brand-orange/15 border border-brand-orange/50 text-white"
-                        : "bg-brand-border/30 border border-transparent text-white/50 hover:text-white hover:border-brand-border"
-                    }`}
-                  >
+                  <button key={p.id} onClick={() => setPaper(p.id)}
+                    className={`font-body text-sm px-4 py-3 rounded-lg text-left transition-all duration-200 ${paper === p.id ? "bg-brand-orange/15 border border-brand-orange/50 text-white" : "bg-brand-border/30 border border-transparent text-white/50 hover:text-white hover:border-brand-border"}`}>
                     {p.label}
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Deadline */}
             <div>
-              <label className="font-body text-sm font-semibold text-white/70 block mb-3">
-                Срок изготовления
-              </label>
+              <label className="font-body text-sm font-semibold text-white/70 block mb-3">Срок изготовления</label>
               <div className="flex flex-col gap-2">
                 {deadlines.map((d) => (
-                  <button
-                    key={d.id}
-                    onClick={() => setDeadline(d.id)}
-                    className={`font-body text-sm px-4 py-3 rounded-lg text-left flex items-center gap-3 transition-all duration-200 ${
-                      deadline === d.id
-                        ? "bg-brand-orange/15 border border-brand-orange/50 text-white"
-                        : "bg-brand-border/30 border border-transparent text-white/50 hover:text-white hover:border-brand-border"
-                    }`}
-                  >
-                    <div
-                      className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                        d.id === "express"
-                          ? "bg-red-400"
-                          : d.id === "fast"
-                          ? "bg-amber-400"
-                          : "bg-green-400"
-                      }`}
-                    />
+                  <button key={d.id} onClick={() => setDeadline(d.id)}
+                    className={`font-body text-sm px-4 py-3 rounded-lg text-left flex items-center gap-3 transition-all duration-200 ${deadline === d.id ? "bg-brand-orange/15 border border-brand-orange/50 text-white" : "bg-brand-border/30 border border-transparent text-white/50 hover:text-white hover:border-brand-border"}`}>
+                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${d.id === "express" ? "bg-red-400" : d.id === "fast" ? "bg-amber-400" : "bg-green-400"}`} />
                     {d.label}
-                    {d.mult > 1 && (
-                      <span className="ml-auto text-xs text-white/30">
-                        +{Math.round((d.mult - 1) * 100)}%
-                      </span>
-                    )}
+                    {d.mult > 1 && <span className="ml-auto text-xs text-white/30">+{Math.round((d.mult - 1) * 100)}%</span>}
                   </button>
                 ))}
               </div>
             </div>
           </div>
 
-          {/* Result */}
-          <div className="lg:col-span-2 flex flex-col gap-4">
-            <div className="card-glass rounded-2xl p-6 flex-1 flex flex-col justify-center text-center">
+          <div className="lg:col-span-2">
+            <div className="card-glass rounded-2xl p-6 flex flex-col text-center h-full justify-center">
               <div className="font-body text-sm text-white/50 mb-2">Итоговая стоимость</div>
-              <div className="font-display text-4xl font-bold gradient-text mb-1">
-                {total.toLocaleString("ru")} ₽
-              </div>
+              <div className="font-display text-4xl font-bold gradient-text mb-1">{total.toLocaleString("ru")} ₽</div>
               <div className="font-body text-xs text-white/30 mb-8">{perUnit} ₽ за экземпляр</div>
 
               <div className="space-y-3 text-left mb-8">
-                {[
-                  ["Формат", format],
-                  ["Страниц", `${pages} стр.`],
-                  ["Тираж", `${qty.toLocaleString("ru")} шт.`],
-                  ["Бумага", papers.find((p) => p.id === paper)?.label ?? ""],
-                  [
-                    "Срок",
-                    deadlines.find((d) => d.id === deadline)?.label ?? "",
-                  ],
-                ].map(([k, v]) => (
+                {[["Формат", format], ["Страниц", `${pages} стр.`], ["Тираж", `${qty.toLocaleString("ru")} шт.`], ["Бумага", papers.find((p) => p.id === paper)?.label ?? ""], ["Срок", deadlines.find((d) => d.id === deadline)?.label ?? ""]].map(([k, v]) => (
                   <div key={k} className="flex justify-between py-2 border-b border-brand-border">
                     <span className="font-body text-xs text-white/40">{k}</span>
                     <span className="font-body text-xs text-white font-semibold">{v}</span>
@@ -615,20 +818,16 @@ function Calculator() {
               </div>
 
               {discountPct > 0 && (
-                <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-3 mb-6 text-center">
-                  <div className="font-body text-xs text-green-400">
-                    🎉 Скидка за тираж {discountPct}% применена
-                  </div>
+                <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-3 mb-6">
+                  <div className="font-body text-xs text-green-400">🎉 Скидка за тираж {discountPct}% применена</div>
                 </div>
               )}
 
-              <a
-                href="#contacts"
-                className="gradient-brand text-white font-body font-bold py-4 px-6 rounded-xl hover:opacity-90 hover:shadow-lg hover:shadow-orange-500/40 transition-all duration-300 text-center block"
-              >
+              <button onClick={onQuiz}
+                className="gradient-brand text-white font-body font-bold py-4 px-6 rounded-xl hover:opacity-90 hover:shadow-lg hover:shadow-orange-500/40 transition-all duration-300 text-center">
                 Заказать сейчас
-              </a>
-              <button className="mt-3 font-body text-sm text-white/40 hover:text-white/70 transition-colors">
+              </button>
+              <button onClick={onQuiz} className="mt-3 font-body text-sm text-white/40 hover:text-white/70 transition-colors">
                 Запросить точный расчёт
               </button>
             </div>
@@ -639,88 +838,91 @@ function Calculator() {
   );
 }
 
-// ─── REVIEWS ─────────────────────────────────────────────────────────────────
+// ─── REVIEWS (Яндекс Бизнес стиль) ──────────────────────────────────────────
 function Reviews() {
   const reviews = [
-    {
-      name: "Алексей Воронов",
-      company: "Директор маркетинга, TechGroup",
-      text: "Работаем с ПринтМастером уже 4 года. Качество каталогов всегда на высоте, сроки никогда не срываются. Особенно ценим оперативность при срочных заказах.",
-      stars: 5,
-      avatar: "АВ",
-    },
-    {
-      name: "Мария Соколова",
-      company: "Бренд-менеджер, Fashion House",
-      text: "Заказывали журналы для корпоративного мероприятия. Результат превзошёл ожидания — глянцевая печать выглядит роскошно, клиенты в восторге!",
-      stars: 5,
-      avatar: "МС",
-    },
-    {
-      name: "Дмитрий Кузнецов",
-      company: "Владелец, СтройПлюс",
-      text: "Печатаем рекламные брошюры каждый квартал. Качество стабильное, цены честные. Менеджеры всегда на связи и помогают с макетом.",
-      stars: 5,
-      avatar: "ДК",
-    },
-    {
-      name: "Ольга Петрова",
-      company: "Ивент-менеджер, EventPro",
-      text: "Экспресс-тираж буклетов заказали за сутки до выставки. Всё успели — качество отличное, никаких замечаний. Рекомендую!",
-      stars: 5,
-      avatar: "ОП",
-    },
-    {
-      name: "Иван Смирнов",
-      company: "CEO, Digital Agency",
-      text: "Долго искали типографию с хорошим соотношением цена/качество. ПринтМастер — оптимальный вариант для нашего бизнеса. Работаем больше 2 лет.",
-      stars: 5,
-      avatar: "ИС",
-    },
-    {
-      name: "Наталья Иванова",
-      company: "PR-директор, MedTech",
-      text: "Печать каталогов для международной выставки. Высококачественная мелованная бумага, яркие цвета, прекрасная брошюровка. Спасибо команде!",
-      stars: 5,
-      avatar: "НИ",
-    },
+    { name: "Алексей В.", date: "2 дня назад", text: "Работаем с ПринтМастером уже 4 года. Качество каталогов всегда на высоте, сроки никогда не срываются.", stars: 5, avatar: "А", source: "yandex" },
+    { name: "Мария С.", date: "1 неделю назад", text: "Журналы для корпоративного мероприятия. Глянцевая печать выглядит роскошно, клиенты в восторге!", stars: 5, avatar: "М", source: "yandex" },
+    { name: "Дмитрий К.", date: "2 недели назад", text: "Брошюры каждый квартал. Качество стабильное, цены честные. Менеджеры всегда на связи.", stars: 5, avatar: "Д", source: "yandex" },
+    { name: "Ольга П.", date: "3 недели назад", text: "Экспресс-тираж буклетов за сутки до выставки. Всё успели — качество отличное. Рекомендую!", stars: 5, avatar: "О", source: "yandex" },
+    { name: "Иван С.", date: "1 месяц назад", text: "Отличное соотношение цена/качество. Работаем больше 2 лет, ни разу не подвели.", stars: 5, avatar: "И", source: "yandex" },
+    { name: "Наталья И.", date: "1 месяц назад", text: "Каталоги для международной выставки. Мелованная бумага, яркие цвета, прекрасная брошюровка.", stars: 5, avatar: "Н", source: "yandex" },
   ];
 
   return (
     <section id="reviews" className="py-24 bg-[#0A0806] relative overflow-hidden">
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-brand-amber/5 rounded-full blur-3xl" />
-      </div>
-
+      <div className="absolute top-0 right-0 w-80 h-80 bg-brand-amber/5 rounded-full blur-3xl pointer-events-none" />
       <div className="max-w-7xl mx-auto px-6 relative z-10">
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 bg-brand-orange/10 border border-brand-orange/30 rounded-full px-4 py-1.5 mb-4">
             <Icon name="Star" size={14} className="text-brand-orange" />
             <span className="font-body text-sm text-brand-orange font-medium">Отзывы клиентов</span>
           </div>
-          <h2 className="font-display text-4xl md:text-5xl font-bold text-white mb-4">
-            НАС <span className="gradient-text">РЕКОМЕНДУЮТ</span>
-          </h2>
-          <p className="font-body text-white/50">Более 1 200 довольных клиентов по всей России</p>
+          <h2 className="font-display text-4xl md:text-5xl font-bold text-white mb-4">НАС <span className="gradient-text">РЕКОМЕНДУЮТ</span></h2>
+
+          {/* Yandex-style rating block */}
+          <div className="inline-flex items-center gap-4 bg-[#1A1512] border border-brand-border rounded-2xl px-6 py-4 mt-4">
+            <div className="text-left">
+              <div className="font-display text-4xl font-bold text-white">5.0</div>
+              <div className="flex gap-0.5 mt-1">
+                {[1,2,3,4,5].map(i => <Icon key={i} name="Star" size={14} className="text-yellow-400" />)}
+              </div>
+              <div className="font-body text-xs text-white/40 mt-1">на Яндекс Картах</div>
+            </div>
+            <div className="w-px h-12 bg-brand-border" />
+            <div className="text-left">
+              <div className="font-display text-2xl font-bold text-white">186</div>
+              <div className="font-body text-xs text-white/40">отзывов</div>
+            </div>
+            <div className="w-px h-12 bg-brand-border" />
+            {/* Yandex logo block */}
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-red-600 rounded-lg flex items-center justify-center">
+                <span className="font-display text-white font-bold text-sm">Я</span>
+              </div>
+              <div>
+                <div className="font-body text-xs font-semibold text-white">Яндекс</div>
+                <div className="font-body text-xs text-white/40">Бизнес</div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {reviews.map((r) => (
-            <div key={r.name} className="card-dark rounded-2xl p-6 hover-lift">
-              <div className="flex gap-1 mb-4">
+            <div key={r.name} className="bg-[#141210] border border-brand-border rounded-2xl p-5 hover-lift">
+              {/* Review header */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full gradient-brand flex items-center justify-center flex-shrink-0">
+                    <span className="font-display text-sm font-bold text-white">{r.avatar}</span>
+                  </div>
+                  <div>
+                    <div className="font-body text-sm font-semibold text-white">{r.name}</div>
+                    <div className="font-body text-xs text-white/35">{r.date}</div>
+                  </div>
+                </div>
+                {/* Yandex mini badge */}
+                <div className="w-6 h-6 bg-red-600 rounded flex items-center justify-center flex-shrink-0">
+                  <span className="font-display text-white font-bold text-xs">Я</span>
+                </div>
+              </div>
+
+              {/* Stars */}
+              <div className="flex gap-0.5 mb-3">
                 {Array.from({ length: r.stars }).map((_, j) => (
-                  <Icon key={j} name="Star" size={14} className="text-brand-amber" />
+                  <Icon key={j} name="Star" size={13} className="text-yellow-400" />
                 ))}
               </div>
-              <p className="font-body text-sm text-white/70 leading-relaxed mb-6">"{r.text}"</p>
-              <div className="flex items-center gap-3 pt-4 border-t border-brand-border">
-                <div className="w-10 h-10 rounded-full gradient-brand flex items-center justify-center flex-shrink-0">
-                  <span className="font-display text-xs font-bold text-white">{r.avatar}</span>
-                </div>
-                <div>
-                  <div className="font-body text-sm font-semibold text-white">{r.name}</div>
-                  <div className="font-body text-xs text-white/40">{r.company}</div>
-                </div>
+
+              <p className="font-body text-sm text-white/65 leading-relaxed">{r.text}</p>
+
+              {/* Like block */}
+              <div className="flex items-center gap-4 mt-4 pt-4 border-t border-brand-border">
+                <button className="flex items-center gap-1.5 text-white/30 hover:text-white/60 transition-colors">
+                  <Icon name="ThumbsUp" size={13} />
+                  <span className="font-body text-xs">Полезно</span>
+                </button>
               </div>
             </div>
           ))}
@@ -733,19 +935,17 @@ function Reviews() {
 // ─── CONTACTS ────────────────────────────────────────────────────────────────
 function Contacts() {
   const [form, setForm] = useState({ name: "", phone: "", comment: "" });
+  const [sent, setSent] = useState(false);
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm({ ...form, [e.target.name]: e.target.value });
-  };
+
+  const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); setSent(true); };
 
   return (
     <section id="contacts" className="py-24 bg-brand-dark relative overflow-hidden">
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-brand-orange/8 rounded-full blur-3xl" />
-        <div className="absolute top-0 left-0 w-64 h-64 bg-brand-amber/5 rounded-full blur-3xl" />
-      </div>
+      <div className="absolute bottom-0 right-0 w-96 h-96 bg-brand-orange/8 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-0 left-0 w-64 h-64 bg-brand-amber/5 rounded-full blur-3xl pointer-events-none" />
 
       <div className="max-w-6xl mx-auto px-6 relative z-10">
         <div className="text-center mb-16">
@@ -753,97 +953,62 @@ function Contacts() {
             <Icon name="Phone" size={14} className="text-brand-orange" />
             <span className="font-body text-sm text-brand-orange font-medium">Свяжитесь с нами</span>
           </div>
-          <h2 className="font-display text-4xl md:text-5xl font-bold text-white mb-4">
-            ОСТАВЬТЕ <span className="gradient-text">ЗАЯВКУ</span>
-          </h2>
-          <p className="font-body text-white/50">
-            Ответим в течение 30 минут и подготовим точное коммерческое предложение
-          </p>
+          <h2 className="font-display text-4xl md:text-5xl font-bold text-white mb-4">ОСТАВЬТЕ <span className="gradient-text">ЗАЯВКУ</span></h2>
+          <p className="font-body text-white/50">Ответим в течение 30 минут и подготовим точное коммерческое предложение</p>
         </div>
 
         <div className="grid lg:grid-cols-2 gap-10">
           <div className="card-dark rounded-2xl p-8">
             <h3 className="font-display text-2xl font-bold text-white mb-6">Форма заявки</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="font-body text-sm text-white/60 mb-2 block">Ваше имя</label>
-                <input
-                  name="name"
-                  value={form.name}
-                  onChange={handleChange}
-                  placeholder="Иван Иванов"
-                  className="w-full bg-brand-border/40 border border-brand-border rounded-xl px-4 py-3 font-body text-sm text-white placeholder-white/30 focus:outline-none focus:border-brand-orange/60 transition-colors"
-                />
+            {!sent ? (
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label className="font-body text-sm text-white/60 mb-2 block">Ваше имя</label>
+                  <input name="name" value={form.name} onChange={handleChange} placeholder="Иван Иванов" required
+                    className="w-full bg-brand-border/40 border border-brand-border rounded-xl px-4 py-3 font-body text-sm text-white placeholder-white/30 focus:outline-none focus:border-brand-orange/60 transition-colors" />
+                </div>
+                <div>
+                  <label className="font-body text-sm text-white/60 mb-2 block">Телефон</label>
+                  <input name="phone" value={form.phone} onChange={handleChange} placeholder="+7 (495) 123-45-67" required
+                    className="w-full bg-brand-border/40 border border-brand-border rounded-xl px-4 py-3 font-body text-sm text-white placeholder-white/30 focus:outline-none focus:border-brand-orange/60 transition-colors" />
+                </div>
+                <div>
+                  <label className="font-body text-sm text-white/60 mb-2 block">Комментарий к заказу</label>
+                  <textarea name="comment" value={form.comment} onChange={handleChange} rows={4}
+                    placeholder="Опишите задачу: тип изделия, формат, тираж..."
+                    className="w-full bg-brand-border/40 border border-brand-border rounded-xl px-4 py-3 font-body text-sm text-white placeholder-white/30 focus:outline-none focus:border-brand-orange/60 transition-colors resize-none" />
+                </div>
+                <button type="submit"
+                  className="w-full gradient-brand text-white font-body font-bold py-4 rounded-xl hover:opacity-90 hover:shadow-lg hover:shadow-orange-500/40 transition-all duration-300">
+                  Отправить заявку
+                </button>
+                <p className="font-body text-xs text-white/30 text-center">Нажимая кнопку, вы соглашаетесь с политикой конфиденциальности</p>
+              </form>
+            ) : (
+              <div className="text-center py-10">
+                <div className="w-14 h-14 gradient-brand rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Icon name="CheckCircle" size={28} className="text-white" />
+                </div>
+                <h4 className="font-display text-xl font-bold text-white mb-2">Заявка принята!</h4>
+                <p className="font-body text-sm text-white/50">Свяжемся с вами в течение 30 минут</p>
               </div>
-              <div>
-                <label className="font-body text-sm text-white/60 mb-2 block">Телефон</label>
-                <input
-                  name="phone"
-                  value={form.phone}
-                  onChange={handleChange}
-                  placeholder="+7 (999) 000-00-00"
-                  className="w-full bg-brand-border/40 border border-brand-border rounded-xl px-4 py-3 font-body text-sm text-white placeholder-white/30 focus:outline-none focus:border-brand-orange/60 transition-colors"
-                />
-              </div>
-              <div>
-                <label className="font-body text-sm text-white/60 mb-2 block">Комментарий к заказу</label>
-                <textarea
-                  name="comment"
-                  value={form.comment}
-                  onChange={handleChange}
-                  rows={4}
-                  placeholder="Опишите задачу: тип изделия, формат, тираж..."
-                  className="w-full bg-brand-border/40 border border-brand-border rounded-xl px-4 py-3 font-body text-sm text-white placeholder-white/30 focus:outline-none focus:border-brand-orange/60 transition-colors resize-none"
-                />
-              </div>
-              <button className="w-full gradient-brand text-white font-body font-bold py-4 rounded-xl hover:opacity-90 hover:shadow-lg hover:shadow-orange-500/40 transition-all duration-300">
-                Отправить заявку
-              </button>
-              <p className="font-body text-xs text-white/30 text-center">
-                Нажимая кнопку, вы соглашаетесь с политикой конфиденциальности
-              </p>
-            </div>
+            )}
           </div>
 
           <div className="flex flex-col gap-5">
             {[
-              {
-                icon: "Phone",
-                title: "Телефон",
-                lines: ["+7 (495) 123-45-67", "+7 (800) 000-00-00 (бесплатно)"],
-              },
-              {
-                icon: "Mail",
-                title: "Email",
-                lines: ["info@printmaster.ru", "zakaz@printmaster.ru"],
-              },
-              {
-                icon: "MapPin",
-                title: "Адрес",
-                lines: [
-                  "г. Москва, ул. Полиграфическая, д. 15",
-                  "м. Профсоюзная, 5 минут пешком",
-                ],
-              },
-              {
-                icon: "Clock",
-                title: "Режим работы",
-                lines: ["Пн–Пт: 9:00 – 19:00", "Сб: 10:00 – 16:00"],
-              },
+              { icon: "Phone", title: "Телефон", lines: ["+7 (495) 123-45-67"] },
+              { icon: "Mail", title: "Email", lines: ["info@printmaster.ru"] },
+              { icon: "MapPin", title: "Адрес", lines: ["г. Москва, ул. Полиграфическая, д. 15", "м. Профсоюзная, 5 минут пешком"] },
+              { icon: "Clock", title: "Режим работы", lines: ["Пн–Пт: 9:00 – 19:00", "Сб: 10:00 – 16:00"] },
             ].map((info) => (
               <div key={info.title} className="card-dark rounded-2xl p-5 flex items-start gap-4 hover-lift">
                 <div className="w-11 h-11 gradient-brand rounded-xl flex items-center justify-center flex-shrink-0">
                   <Icon name={info.icon as LucideIconName} size={20} className="text-white" />
                 </div>
                 <div>
-                  <div className="font-display text-base font-bold text-white mb-1.5">
-                    {info.title}
-                  </div>
-                  {info.lines.map((l) => (
-                    <div key={l} className="font-body text-sm text-white/60">
-                      {l}
-                    </div>
-                  ))}
+                  <div className="font-display text-base font-bold text-white mb-1.5">{info.title}</div>
+                  {info.lines.map((l) => <div key={l} className="font-body text-sm text-white/60">{l}</div>)}
                 </div>
               </div>
             ))}
@@ -863,22 +1028,15 @@ function Footer() {
           <div className="w-8 h-8 gradient-brand rounded-lg flex items-center justify-center">
             <Icon name="Printer" size={16} className="text-white" />
           </div>
-          <span className="font-display text-lg font-bold text-white">
-            ПРИНТ<span className="gradient-text">МАСТЕР</span>
-          </span>
+          <span className="font-display text-lg font-bold text-white">ПРИНТ<span className="gradient-text">МАСТЕР</span></span>
         </div>
-        <p className="font-body text-xs text-white/30 text-center">
-          © 2024 ПринтМастер. Профессиональная полиграфия в Москве
-        </p>
+        <p className="font-body text-xs text-white/30 text-center">© 2024 ПринтМастер. Профессиональная полиграфия в Москве</p>
         <div className="flex gap-5">
           {["Услуги", "Портфолио", "Контакты"].map((l) => (
-            <a
-              key={l}
-              href={`#${l.toLowerCase()}`}
-              className="font-body text-xs text-white/40 hover:text-white transition-colors"
-            >
+            <button key={l} onClick={() => scrollTo(l.toLowerCase())}
+              className="font-body text-xs text-white/40 hover:text-white transition-colors">
               {l}
-            </a>
+            </button>
           ))}
         </div>
       </div>
@@ -888,13 +1046,18 @@ function Footer() {
 
 // ─── PAGE ─────────────────────────────────────────────────────────────────────
 export default function Index() {
+  const [orderOpen, setOrderOpen] = useState(false);
+  const [quizOpen, setQuizOpen] = useState(false);
+
   return (
     <div className="min-h-screen bg-brand-dark">
-      <Nav />
-      <Hero />
+      <OrderModal open={orderOpen} onClose={() => setOrderOpen(false)} />
+      <QuizModal open={quizOpen} onClose={() => setQuizOpen(false)} />
+      <Nav onOrder={() => setOrderOpen(true)} />
+      <Hero onQuiz={() => setQuizOpen(true)} />
       <Services />
-      <Portfolio />
-      <Calculator />
+      <Portfolio onShowAll={() => setOrderOpen(true)} />
+      <Calculator onQuiz={() => setQuizOpen(true)} />
       <Reviews />
       <Contacts />
       <Footer />
